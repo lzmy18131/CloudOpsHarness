@@ -1,0 +1,6 @@
+[
+  {"id": "CFG-1001", "service": "api-gateway", "path": "config/rate-limit.yaml", "before": "window: 1s\nlimit: 500", "after": "window: 1s\nlimit: 800", "applied_at": "2026-01-10T09:10:00Z", "deployment_id": "DEP-1001", "operator": "edge-team", "summary": "raise per-IP rate limit"},
+  {"id": "CFG-3001", "service": "order-service", "path": "config/db-pool.yaml", "before": "max_connections: 20\nmax_idle: 8", "after": "max_connections: 50\nmax_idle: 20", "applied_at": "2026-01-12T16:02:00Z", "deployment_id": "DEP-3001", "operator": "commerce-team", "summary": "grow db pool headroom"},
+  {"id": "CFG-4001", "service": "payment-service", "path": "config/checkout.yaml", "before": "retry_policy:\n  max_attempts: 3\n  backoff: exponential", "after": "retry_policy:\n  max_attempts: 3\n  backoff: exponential", "applied_at": "2026-01-12T18:28:00Z", "deployment_id": "DEP-4001", "operator": "payments-team", "summary": "3DS retry policy"},
+  {"id": "CFG-5001", "service": "inventory-service", "path": "config/reservation.yaml", "before": "reservation_ttl_seconds: 600", "after": "reservation_ttl_seconds: 900", "applied_at": "2026-01-06T13:19:00Z", "deployment_id": "DEP-5001", "operator": "fulfillment-team", "summary": "extend reservation TTL"}
+]

@@ -1,0 +1,32 @@
+{
+  "api-gateway": [
+    {"level": "INFO", "message": "GET /v1/health 200 2ms"},
+    {"level": "INFO", "message": "rate limiter window advanced"},
+    {"level": "WARN", "message": "upstream slow response detected"}
+  ],
+  "user-service": [
+    {"level": "INFO", "message": "session refresh completed"},
+    {"level": "INFO", "message": "profile cache hit ratio=0.96"},
+    {"level": "WARN", "message": "bcrypt verify above 50ms"}
+  ],
+  "order-service": [
+    {"level": "INFO", "message": "order created"},
+    {"level": "INFO", "message": "idempotency key accepted"},
+    {"level": "WARN", "message": "inventory reservation slow"}
+  ],
+  "payment-service": [
+    {"level": "INFO", "message": "payment authorized"},
+    {"level": "INFO", "message": "3DS challenge completed"},
+    {"level": "WARN", "message": "provider retry scheduled"}
+  ],
+  "inventory-service": [
+    {"level": "INFO", "message": "reservation acquired"},
+    {"level": "INFO", "message": "stock sync batch completed"},
+    {"level": "WARN", "message": "reservation TTL approaching"}
+  ],
+  "notification-service": [
+    {"level": "INFO", "message": "email dispatched"},
+    {"level": "INFO", "message": "webhook delivered"},
+    {"level": "WARN", "message": "kafka lag above threshold"}
+  ]
+}

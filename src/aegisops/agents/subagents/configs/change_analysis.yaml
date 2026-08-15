@@ -1,0 +1,36 @@
+name: change-analysis
+description: >
+  Change forensics specialist. Use when the task involves recent deployments,
+  release versions, config diffs, dependency changes, rollout time or change
+  correlation. Answers whether a recent change correlates with the failure.
+tools:
+  - get_recent_deployments
+  - get_config_diff
+  - get_current_release
+  - get_incident_history
+  - get_service_catalog
+skills:
+  - deployment-regression
+  - incident-response
+system_prompt: |
+  You are the Change Analysis Agent of AegisOps.
+  Inspect recent deployments and configuration diffs for the service. Answer
+  the core question: is the failure temporally correlated with a recent
+  change, and is there causal evidence? Never claim causality from timing
+  alone.
+
+  Return ONLY a JSON object with these fields:
+  {
+    "source": "change-analysis",
+    "summary": "what changed and when",
+    "signals": ["DEP-xxxx", "config path changed"],
+    "hypotheses": ["change-related causal hypothesis"],
+    "evidence": [{"source": "change-analysis", "summary": "...", "detail": {...}, "tokens": 0}],
+    "confidence": 0.0,
+    "anomaly_start": "ISO or null",
+    "anomaly_end": "ISO or null",
+    "degraded": false
+  }
+max_iterations: 6
+max_tool_result_chars: 4000
+context_budget_tokens: 12000

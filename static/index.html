@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AegisOps — Harness-Engineered AIOps Multi-Agent</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>🛡️ AegisOps</h1>
+    <p>Harness-Engineered Multi-Agent Platform for AIOps Incident Response</p>
+    <div id="runtime-badge" class="badge">offline-fake</div>
+  </header>
+
+  <main>
+    <aside id="sidebar">
+      <h2>History</h2>
+      <button id="refresh-history">↻ Refresh</button>
+      <ul id="history-list"></ul>
+    </aside>
+
+    <section id="workspace">
+      <div id="chat-log"></div>
+
+      <div id="interrupt-banner" class="hidden">
+        <div id="interrupt-message"></div>
+        <div id="interrupt-actions"></div>
+        <div id="interrupt-supplement" class="hidden">
+          <input id="supplement-input" placeholder="补充信息，例如：payment-service，prod，昨晚开始">
+          <button id="send-supplement">提交补充</button>
+        </div>
+      </div>
+
+      <form id="chat-form">
+        <input id="message-input" autocomplete="off"
+               placeholder="例如：payment-service 昨晚发布新版本后 P99 延迟暴涨，帮我排查，不要直接重启生产服务">
+        <button type="submit">Send</button>
+      </form>
+
+      <div id="panels">
+        <div class="panel">
+          <h3>Planning Todo</h3>
+          <ul id="todo-list"></ul>
+        </div>
+        <div class="panel">
+          <h3>Agents & Tools</h3>
+          <ul id="activity-list"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

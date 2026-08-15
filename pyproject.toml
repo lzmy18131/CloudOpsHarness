@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegisops"
+version = "0.1.0"
+description = "AegisOps - Harness-Engineered Multi-Agent Platform for AIOps Incident Response"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "AegisOps Team" }]
+keywords = ["langgraph", "multi-agent", "aiops", "harness-engineering", "mcp", "hitl", "sse"]
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn==0.52.3",
+    "pydantic==2.13.4",
+    "pydantic-settings==2.15.0",
+    "langgraph==1.2.11",
+    "langgraph-checkpoint-sqlite==3.1.1",
+    "openai==2.54.0",
+    "fastmcp==3.4.7",
+    "httpx==0.28.1",
+    "pyyaml==6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.16.3",
+]
+mongo = [
+    "pymongo==4.15.5",
+]
+
+[project.scripts]
+aegisops = "aegisops.cli:main"
+aegisops-demo = "aegisops.cli:demo_main"
+aegisops-mcp = "aegisops.mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+aegisops = ["agents/subagents/configs/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "ASYNC"]
+ignore = ["E501", "B008"]

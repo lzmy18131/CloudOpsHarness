@@ -1,0 +1,11 @@
+# Pinned runtime requirements (mirrors pyproject.toml; pyproject is authoritative).
+fastapi==0.141.1
+uvicorn==0.52.3
+pydantic==2.13.4
+pydantic-settings==2.15.0
+langgraph==1.2.11
+langgraph-checkpoint-sqlite==3.1.1
+openai==2.54.0
+fastmcp==3.4.7
+httpx==0.28.1
+pyyaml==6.0.3

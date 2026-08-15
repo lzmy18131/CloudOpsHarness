@@ -1,0 +1,125 @@
+"""Unit tests for the LLM adapter layer (offline only)."""
+
+from __future__ import annotations
+
+import pytest
+from pydantic import BaseModel
+
+from aegisops.config.settings import Settings
+from aegisops.llm.fake import FakeLLM, ScriptedTurn
+from aegisops.llm.models import LLMMessage
+from aegisops.llm.openai_adapter import OpenAICompatibleAdapter
+from aegisops.llm.structured import StructuredOutputError, generate_structured, parse_json_object
+
+
+class TinyModel(BaseModel):
+    answer: str
+    confidence: float
+
+
+@pytest.mark.asyncio
+async def test_fake_llm_scripted_turns() -> None:
+    llm = FakeLLM(
+        script=[
+            ScriptedTurn(
+                match="check payment",
+                tool_call_name="get_service_health",
+                tool_call_args={"service": "payment-service"},
+            ),
+            ScriptedTurn(match="healthy", content="payment-service is healthy"),
+        ]
+    )
+    messages = [LLMMessage(role="user", content="please check payment-service")]
+    tools = [{"function": {"name": "get_service_health"}}]
+    first = await llm.generate(messages, tools=tools)
+    assert first.tool_calls[0].name == "get_service_health"
+    messages.append(LLMMessage(role="assistant", content="", tool_calls=first.tool_calls))
+    messages.append(LLMMessage(role="tool", content="status=healthy", tool_call_id=first.tool_calls[0].id))
+    second = await llm.generate(messages)
+    assert second.content == "payment-service is healthy"
+
+
+@pytest.mark.asyncio
+async def test_fake_llm_scenario_driven_tool_selection() -> None:
+    scenario = {
+        "incident_id": "INC-ABC-1",
+        "service": "payment-service",
+        "anomaly_start": "2026-01-15T00:00:00Z",
+        "anomaly_end": "2026-01-15T01:00:00Z",
+        "expected_tools": ["query_metrics", "get_service_health"],
+        "metric_specs": [{"metric": "latency_p99_ms"}],
+        "log_specs": [{"pattern": "timeout"}],
+        "title": "latency",
+        "root_cause": "bad deploy",
+        "fault_type": "bad-deployment",
+        "severity": "P1",
+    }
+    llm = FakeLLM(scenario=scenario)
+    tools = [
+        {"function": {"name": "query_metrics"}},
+        {"function": {"name": "get_service_health"}},
+        {"function": {"name": "get_current_release"}},
+    ]
+    first = await llm.generate([LLMMessage(role="system", content="AGENT_ROLE: observability")], tools=tools)
+    second = await llm.generate([LLMMessage(role="system", content="AGENT_ROLE: observability")], tools=tools)
+    third = await llm.generate([LLMMessage(role="system", content="AGENT_ROLE: observability")], tools=tools)
+    assert first.tool_calls[0].name == "query_metrics"
+    assert first.tool_calls[0].arguments["service"] == "payment-service"
+    assert second.tool_calls[0].name == "get_service_health"
+    assert third.tool_calls == []
+
+
+@pytest.mark.asyncio
+async def test_fake_llm_records_all_calls() -> None:
+    llm = FakeLLM(default_content="ok")
+    await llm.generate([LLMMessage(role="user", content="hi")])
+    assert len(llm.calls) == 1
+    assert llm.calls[0]["tool_names"] == []
+
+
+def test_openai_adapter_builds_params_without_network(monkeypatch) -> None:
+    monkeypatch.setenv("LLM_API_KEY", "sk-test")
+    monkeypatch.setenv("LLM_BASE_URL", "https://example.com/v1")
+    monkeypatch.setenv("LLM_MODEL", "test-model")
+    settings = Settings(_env_file=None)
+    adapter = OpenAICompatibleAdapter(settings)
+    params = adapter.build_params(
+        [LLMMessage(role="user", content="hello")],
+        tools=[{"type": "function", "function": {"name": "t", "description": "", "parameters": {}}}],
+        response_format={"type": "json_object"},
+    )
+    assert params["model"] == "test-model"
+    assert params["tool_choice"] == "auto"
+    assert params["response_format"] == {"type": "json_object"}
+
+
+def test_openai_adapter_requires_key() -> None:
+    with pytest.raises(ValueError):
+        OpenAICompatibleAdapter(Settings(_env_file=None, llm_api_key=None))
+
+
+def test_parse_json_object_handles_fences_and_wrapping() -> None:
+    assert parse_json_object('```json\n{"a": 1}\n```') == {"a": 1}
+    assert parse_json_object('prefix {"a": {"b": 2}} suffix') == {"a": {"b": 2}}
+    with pytest.raises(StructuredOutputError):
+        parse_json_object("no json at all")
+
+
+@pytest.mark.asyncio
+async def test_generate_structured_retries_once_on_malformed_output() -> None:
+    llm = FakeLLM(
+        script=[
+            ScriptedTurn(content="this is {not json", match="query"),
+            ScriptedTurn(
+                json_payload={"answer": "recovered", "confidence": 0.9}, match="previous output was not valid"
+            ),
+        ]
+    )
+    result = await generate_structured(
+        llm,
+        [LLMMessage(role="user", content="query")],
+        schema_name="TinyModel",
+        output_model=TinyModel,
+    )
+    assert result.answer == "recovered"
+    assert result.confidence == 0.9

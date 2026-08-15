@@ -1,0 +1,17 @@
+{
+  "nodes": ["api-gateway", "user-service", "order-service", "payment-service", "inventory-service", "notification-service", "mysql-primary", "mysql-orders", "redis-cache", "kafka-events"],
+  "edges": [
+    {"source": "api-gateway", "target": "user-service", "kind": "sync"},
+    {"source": "api-gateway", "target": "order-service", "kind": "sync"},
+    {"source": "api-gateway", "target": "notification-service", "kind": "async"},
+    {"source": "order-service", "target": "inventory-service", "kind": "sync"},
+    {"source": "order-service", "target": "payment-service", "kind": "sync"},
+    {"source": "order-service", "target": "mysql-orders", "kind": "db"},
+    {"source": "order-service", "target": "redis-cache", "kind": "cache"},
+    {"source": "user-service", "target": "mysql-primary", "kind": "db"},
+    {"source": "payment-service", "target": "mysql-primary", "kind": "db"},
+    {"source": "payment-service", "target": "redis-cache", "kind": "cache"},
+    {"source": "notification-service", "target": "kafka-events", "kind": "event"},
+    {"source": "order-service", "target": "kafka-events", "kind": "event"}
+  ]
+}
