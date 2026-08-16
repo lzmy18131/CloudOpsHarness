@@ -43,8 +43,8 @@ def resolve_decisions(proposed: list[dict[str, Any]], decisions: list[Decision])
             ),
             None,
         )
-        if decision is None:
-            # legacy tool_name binding is only valid when unambiguous
+        if decision is None and len(proposed_by_tool.get(action.get("tool_name", ""), [])) == 1:
+            # legacy tool_name binding is only valid when the proposed tool is unique
             candidates = [
                 (index, d)
                 for index, d in enumerate(decisions)

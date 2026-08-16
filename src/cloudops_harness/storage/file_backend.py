@@ -108,7 +108,13 @@ class FileThreadStorage(ThreadStorage):
             tmp.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
             tmp.replace(path)
 
-    async def delete_thread(self, thread_id: str) -> bool:
+    async def delete_thread(self, thread_id: str, user_id: str | None = None) -> bool:
+        if user_id is not None:
+            path = self._path(user_id, thread_id)
+            if path.exists():
+                path.unlink()
+                return True
+            return False
         for user_dir in self.root.glob("*"):
             path = user_dir / f"{_safe(thread_id)}.json"
             if path.exists():

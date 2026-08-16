@@ -1,6 +1,6 @@
 # BUILD_STATUS
 
-> 项目根目录：本地仓库 `D:\AegisOps`（GitHub: https://github.com/lzmy18131/CloudOpsHarness）
+> 仓库：https://github.com/lzmy18131/CloudOpsHarness
 > 版本：**v0.2.2** · commit：见 `git log`（最新） · tag：**v0.2.2**
 
 ## v0.2.2 Final Bug Fix 状态
@@ -29,7 +29,7 @@
 
 ## 最终状态（v0.2.2）
 
-- Tests：**collected 133 · passed 132 · failed 0 · skipped 1**（skipped = real-Docker smoke，本机 daemon 不可用）
+- Tests：**collected 134 · passed 133 · failed 0 · skipped 1**（skipped = real-Docker smoke，本机 daemon 不可用）
 - ruff check ✅ · ruff format --check ✅
 - Evaluation：`eval_results/offline_20260816T060613Z/summary.json`（n=110 × 5 systems）
 - Demos：A/B/C/D PASS

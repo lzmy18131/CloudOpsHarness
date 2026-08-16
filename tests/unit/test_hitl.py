@@ -43,4 +43,4 @@ def test_legacy_tool_name_binding_works_only_when_unambiguous() -> None:
     ambiguous = assign_action_ids([{"tool_name": "restart_service"}, {"tool_name": "restart_service"}])
     decisions_ambiguous = [Decision(type="approve", tool_name="restart_service")]
     resolved_ambiguous = resolve_decisions(ambiguous, decisions_ambiguous)
-    assert sum(d.type == "approve" for d in resolved_ambiguous.values()) <= 1
+    assert all(d.type == "reject" for d in resolved_ambiguous.values())

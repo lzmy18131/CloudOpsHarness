@@ -4,7 +4,7 @@
 - Python 3.11.15（项目 venv）
 - 依赖全部固定（langgraph 1.2.11 / fastapi 0.141.1 / pydantic 2.13.4 / fastmcp 3.4.7 / openai 2.54.0 …）
 - `ruff check src tests scripts` ✅ · `ruff format --check` ✅
-- Tests：**collected 133 · passed 132 · failed 0 · skipped 1**（skipped = real-Docker smoke，本机 daemon 不可用）
+- Tests：**collected 134 · passed 133 · failed 0 · skipped 1**（skipped = real-Docker smoke，本机 daemon 不可用）
 
 ## v0.2.2 Final Bug Fixes (on top of v0.2.1)
 

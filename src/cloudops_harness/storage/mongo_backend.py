@@ -60,7 +60,7 @@ class MongoThreadStorage(ThreadStorage):
             update["$set"]["final_report"] = event.get("content", "")
             update["$set"]["status"] = event.get("status", "done")
         await self.collection.update_one(
-            {"thread_id": thread_id},
+            {"thread_id": thread_id, "user_id": user_id},
             {
                 "$setOnInsert": {"thread_id": thread_id, "user_id": user_id, "created_at": now},
                 **update,
@@ -68,6 +68,7 @@ class MongoThreadStorage(ThreadStorage):
             upsert=True,
         )
 
-    async def delete_thread(self, thread_id: str) -> bool:
-        result = await self.collection.delete_one({"thread_id": thread_id})
+    async def delete_thread(self, thread_id: str, user_id: str | None = None) -> bool:
+        query = {"thread_id": thread_id, "user_id": user_id} if user_id else {"thread_id": thread_id}
+        result = await self.collection.delete_one(query)
         return result.deleted_count > 0

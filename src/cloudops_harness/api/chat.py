@@ -307,7 +307,12 @@ async def history(user_id: str, request: Request) -> list[dict[str, Any]]:
 
 @router.get("/history/{thread_id}")
 async def history_detail(thread_id: str, request: Request, user_id: str | None = None) -> dict[str, Any]:
-    record = await _storage(request).get_thread(thread_id)
+    storage = _storage(request)
+    record = (
+        await storage.get_thread(thread_id, user_id=user_id)
+        if user_id
+        else await storage.get_thread(thread_id)
+    )
     if record is None:
         raise HTTPException(status_code=404, detail="thread not found")
     if user_id and record.get("user_id") != user_id:
@@ -318,10 +323,15 @@ async def history_detail(thread_id: str, request: Request, user_id: str | None =
 @router.delete("/history/{thread_id}")
 async def history_delete(thread_id: str, request: Request, user_id: str | None = None) -> dict[str, Any]:
     storage = _storage(request)
-    record = await storage.get_thread(thread_id)
+    record = (
+        await storage.get_thread(thread_id, user_id=user_id)
+        if user_id
+        else await storage.get_thread(thread_id)
+    )
     if record is None:
         raise HTTPException(status_code=404, detail="thread not found")
     if user_id and record.get("user_id") != user_id:
         raise HTTPException(status_code=403, detail="thread does not belong to this user")
-    deleted = await storage.delete_thread(thread_id)
+    owner = record.get("user_id") or user_id or "anonymous"
+    deleted = await storage.delete_thread(thread_id, user_id=owner)
     return {"thread_id": thread_id, "deleted": deleted}

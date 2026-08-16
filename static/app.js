@@ -60,10 +60,10 @@ function showInterrupt(payload) {
       actions.appendChild(row);
       const approve = document.createElement("button");
       approve.textContent = `Approve ${req.tool_name}`;
-      approve.onclick = () => resume({ decisions: [{ type: "approve", tool_name: req.tool_name }] });
+      approve.onclick = () => resume({ decisions: [{ type: "approve", action_id: req.action_id, tool_name: req.tool_name }] });
       const reject = document.createElement("button");
       reject.textContent = "Reject";
-      reject.onclick = () => resume({ decisions: [{ type: "reject", tool_name: req.tool_name, comment: "rejected by operator" }] });
+      reject.onclick = () => resume({ decisions: [{ type: "reject", action_id: req.action_id, tool_name: req.tool_name, comment: "rejected by operator" }] });
       actions.append(approve, reject, document.createElement("br"));
     }
   }
