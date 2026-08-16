@@ -1,8 +1,8 @@
-# AegisOps Security
+# CloudOps Harness Security
 
 ## 1. Threat model
 
-AegisOps lets LLMs call operations tools and execute diagnostic code. Threats:
+CloudOps Harness lets LLMs call operations tools and execute diagnostic code. Threats:
 
 1. Prompt injection through logs / user text / tool results
 2. Unauthorized production changes
@@ -56,7 +56,7 @@ AegisOps lets LLMs call operations tools and execute diagnostic code. Threats:
 - workspace-per-user directories + path traversal checks + command pattern
   allowlist + output truncation + per-command timeout
 - **Honest limitation**: it is NOT a kernel-level isolation boundary. Use
-  `AEGIS_SANDBOX_BACKEND=docker` for any untrusted input or production demo.
+  `CLOUDOPS_SANDBOX_BACKEND=docker` for any untrusted input or production demo.
 
 **Recovery:** sandbox death trips a circuit breaker and triggers
 `manager.rebuild()` + `proxy.replace_backend()`; repeated failure opens the
@@ -70,7 +70,7 @@ breaker and sandbox tools degrade gracefully instead of retrying forever.
 
 - No key, token or password in the repo; `.env` is gitignored.
 - `.env.example` contains placeholders only.
-- Sandbox processes receive no `LLM_API_KEY`, `AEGIS_*` or cloud credentials.
+- Sandbox processes receive no `LLM_API_KEY`, `CLOUDOPS_*` or cloud credentials.
 - Docker containers have no network path to the host or cloud metadata.
 
 ## 6. Dynamic skills (safe installer)
@@ -98,7 +98,7 @@ Tests prove user A cannot read user B files/history/sandbox workspaces.
 
 - LocalSandboxBackend is a dev fallback, not a jail.
 - The in-process MCP transport relies on Python process isolation; deploy the
-  MCP server as a separate stdio process (`python -m aegisops.mcp.server`) if
+  MCP server as a separate stdio process (`python -m cloudops_harness.mcp.server`) if
   the tool boundary must cross a trust boundary.
 - SQLite checkpoint and file storage are single-host; use MongoDB (optional
   extras + compose) for horizontal deployment.

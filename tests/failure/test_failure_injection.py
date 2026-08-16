@@ -7,11 +7,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from aegisops.api.app import create_app
-from aegisops.config.settings import Settings
-from aegisops.providers.mock import MockOpsProvider
-from aegisops.storage.file_backend import FileThreadStorage
-from aegisops.tools.registry import ToolRegistry
+from cloudops_harness.api.app import create_app
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.providers.mock import MockOpsProvider
+from cloudops_harness.storage.file_backend import FileThreadStorage
+from cloudops_harness.tools.registry import ToolRegistry
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -54,12 +54,12 @@ async def test_invalid_tool_result_degrades_to_error_result() -> None:
 
 @pytest.mark.asyncio
 async def test_mcp_unavailable_degrades_to_boundary_error() -> None:
-    from aegisops.mcp.client import MCPToolAdapter
-    from aegisops.mcp.server import AegisMcpServer, McpToolError
+    from cloudops_harness.mcp.client import MCPToolAdapter
+    from cloudops_harness.mcp.server import CloudOpsMcpServer, McpToolError
 
     provider = MockOpsProvider(fixtures_dir=PROJECT_ROOT / "fixtures")
     provider.fault_injection.unavailable = True
-    adapter = MCPToolAdapter(server=AegisMcpServer(provider=provider))
+    adapter = MCPToolAdapter(server=CloudOpsMcpServer(provider=provider))
     with pytest.raises(McpToolError):
         await adapter.get_service_health("payment-service")
 
@@ -69,7 +69,7 @@ def test_mongo_unavailable_falls_back_to_file_storage(tmp_path, monkeypatch) -> 
         def __init__(self, *args, **kwargs):
             raise RuntimeError("pymongo unavailable (injected)")
 
-    monkeypatch.setattr("aegisops.api.app.MongoThreadStorage", BrokenMongo)
+    monkeypatch.setattr("cloudops_harness.api.app.MongoThreadStorage", BrokenMongo)
     settings = Settings(
         _env_file=None,
         environment="test",
@@ -91,15 +91,15 @@ def test_llm_timeout_is_retried_then_recovers() -> None:
 
     from pydantic import BaseModel
 
-    from aegisops.llm.fake import FakeLLM
-    from aegisops.llm.models import LLMMessage
-    from aegisops.llm.structured import generate_structured
+    from cloudops_harness.llm.fake import FakeLLM
+    from cloudops_harness.llm.models import LLMMessage
+    from cloudops_harness.llm.structured import generate_structured
 
     class TimeoutOnceLLM(FakeLLM):
         def __init__(self):
             super().__init__(
                 script=[
-                    __import__("aegisops.llm.fake", fromlist=["ScriptedTurn"]).ScriptedTurn(
+                    __import__("cloudops_harness.llm.fake", fromlist=["ScriptedTurn"]).ScriptedTurn(
                         json_payload={"answer": "recovered", "confidence": 0.5}, match="previous output"
                     )
                 ]

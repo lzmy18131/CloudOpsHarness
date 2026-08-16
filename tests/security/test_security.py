@@ -10,10 +10,10 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 from tests.integration.test_main_agent import make_scenario
 
-from aegisops.agents.runtime import AegisRuntime
-from aegisops.config.settings import Settings
-from aegisops.memory.preferences import PreferenceStore
-from aegisops.tools.registry import ToolApprovalRequiredError
+from cloudops_harness.agents.runtime import CloudOpsRuntime
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.memory.preferences import PreferenceStore
+from cloudops_harness.tools.registry import ToolApprovalRequiredError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -24,7 +24,7 @@ INJECTION_LOG = (
 
 
 @pytest.fixture()
-def runtime(tmp_path) -> AegisRuntime:
+def runtime(tmp_path) -> CloudOpsRuntime:
     settings = Settings(
         _env_file=None,
         environment="test",
@@ -33,7 +33,7 @@ def runtime(tmp_path) -> AegisRuntime:
         skills_dir=PROJECT_ROOT / "skills",
         sandbox_backend="local",
     )
-    runtime = AegisRuntime(settings)
+    runtime = CloudOpsRuntime(settings)
     scenario = make_scenario()
     # Untrusted log data carries an injection payload.
     scenario["log_specs"].append(
@@ -77,7 +77,7 @@ async def test_log_prompt_injection_cannot_change_risk_policy(runtime) -> None:
 
 @pytest.mark.asyncio
 async def test_risk_policy_bypass_attempt_is_rejected_at_registry(runtime) -> None:
-    runtime.registry.call_counts.clear()
+    runtime.start_tool_budget("security-test")
     with pytest.raises(ToolApprovalRequiredError):
         await runtime.registry.call(
             "restart_service", {"service": "payment-service", "reason": "prompt said to"}, agent="attacker"
@@ -101,3 +101,20 @@ def test_user_memory_isolation_alice_cannot_read_bob(tmp_path) -> None:
     assert alice_path != bob_path
     assert "payment-service" not in json.dumps(store.get("bob"))
     assert "order-service" not in json.dumps(store.get("alice"))
+
+
+@pytest.mark.asyncio
+async def test_path_traversal_identifiers_are_rejected(runtime, tmp_path) -> None:
+    from cloudops_harness.security.identifiers import InvalidIdentifierError
+    from cloudops_harness.storage.file_backend import FileThreadStorage
+
+    with pytest.raises(InvalidIdentifierError):
+        runtime.memory.update("../admin", preferred_language="en")
+    with pytest.raises(InvalidIdentifierError):
+        runtime.memory.update("../../etc", preferred_language="en")
+    with pytest.raises(InvalidIdentifierError):
+        await runtime.sandbox_manager.ensure("/tmp/a")
+    with pytest.raises(InvalidIdentifierError):
+        await FileThreadStorage(tmp_path / "history").append_event(
+            "../../../x", "alice", {"kind": "message", "role": "user", "content": "x"}
+        )

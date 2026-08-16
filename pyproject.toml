@@ -3,13 +3,13 @@ requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aegisops"
-version = "0.1.0"
-description = "AegisOps - Harness-Engineered Multi-Agent Platform for AIOps Incident Response"
+name = "cloudops_harness"
+version = "0.2.1"
+description = "CloudOps Harness - Harness-Engineered Multi-Agent Platform for AIOps Incident Response"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "AegisOps Team" }]
+authors = [{ name = "CloudOps Harness Team" }]
 keywords = ["langgraph", "multi-agent", "aiops", "harness-engineering", "mcp", "hitl", "sse"]
 dependencies = [
     "fastapi==0.141.1",
@@ -35,20 +35,24 @@ mongo = [
 ]
 
 [project.scripts]
-aegisops = "aegisops.cli:main"
-aegisops-demo = "aegisops.cli:demo_main"
-aegisops-mcp = "aegisops.mcp.server:main"
+cloudops_harness = "cloudops_harness.cli:main"
+cloudops_harness-demo = "cloudops_harness.cli:demo_main"
+cloudops_harness-mcp = "cloudops_harness.mcp.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-aegisops = ["agents/subagents/configs/*.yaml"]
+cloudops_harness = ["agents/subagents/configs/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-ra"
+markers = [
+    "integration: integration tests",
+    "docker: tests requiring a real Docker daemon",
+]
 
 [tool.ruff]
 line-length = 110

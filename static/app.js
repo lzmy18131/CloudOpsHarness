@@ -1,4 +1,4 @@
-/* AegisOps lightweight frontend (no build step, no framework). */
+/* CloudOps Harness lightweight frontend (no build step, no framework). */
 const state = {
   userId: "demo-user",
   threadId: null,

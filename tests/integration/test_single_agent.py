@@ -7,11 +7,11 @@ from pathlib import Path
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
-from aegisops.agents.single import build_single_agent_graph
-from aegisops.config.settings import Settings
-from aegisops.llm.fake import FakeLLM, ScriptedTurn
-from aegisops.providers.mock import MockOpsProvider
-from aegisops.tools.registry import ToolRegistry
+from cloudops_harness.agents.single import build_single_agent_graph
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.llm.fake import FakeLLM, ScriptedTurn
+from cloudops_harness.providers.mock import MockOpsProvider
+from cloudops_harness.tools.registry import ToolRegistry
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

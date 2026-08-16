@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from aegisops.mcp.client import MCPToolAdapter
-from aegisops.mcp.server import AegisMcpServer, McpToolError
-from aegisops.providers.mock import MockOpsProvider
+from cloudops_harness.mcp.client import MCPToolAdapter
+from cloudops_harness.mcp.server import CloudOpsMcpServer, McpToolError
+from cloudops_harness.providers.mock import MockOpsProvider
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -32,8 +32,8 @@ REQUIRED_MCP_TOOLS = {
 
 
 @pytest.fixture()
-def server() -> AegisMcpServer:
-    return AegisMcpServer(provider=MockOpsProvider(fixtures_dir=PROJECT_ROOT / "fixtures"))
+def server() -> CloudOpsMcpServer:
+    return CloudOpsMcpServer(provider=MockOpsProvider(fixtures_dir=PROJECT_ROOT / "fixtures"))
 
 
 @pytest.fixture()

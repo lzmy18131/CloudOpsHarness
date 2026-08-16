@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from aegisops.config.settings import Settings
-from aegisops.evaluation.dataset import dataset_stats, validate_dataset
-from aegisops.evaluation.harness import load_default_scenarios, run_experiment
-from aegisops.evaluation.metrics import ScenarioRunResult, mcnemar_pvalue, paired_bootstrap
-from aegisops.evaluation.runners import SystemConfig
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.evaluation.dataset import dataset_stats, validate_dataset
+from cloudops_harness.evaluation.harness import load_default_scenarios, run_experiment
+from cloudops_harness.evaluation.metrics import ScenarioRunResult, mcnemar_pvalue, paired_bootstrap
+from cloudops_harness.evaluation.runners import SystemConfig
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

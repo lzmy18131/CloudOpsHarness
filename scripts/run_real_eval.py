@@ -11,9 +11,9 @@ import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 
-from aegisops.config.settings import Settings
-from aegisops.evaluation.harness import load_default_scenarios, run_experiment
-from aegisops.evaluation.runners import SystemConfig
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.evaluation.harness import load_default_scenarios, run_experiment
+from cloudops_harness.evaluation.runners import SystemConfig
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -43,7 +43,7 @@ async def run(limit: int | None) -> Path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="AegisOps real-LLM evaluation")
+    parser = argparse.ArgumentParser(description="CloudOps Harness real-LLM evaluation")
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
     asyncio.run(run(args.limit))

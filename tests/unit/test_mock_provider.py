@@ -7,9 +7,9 @@ from typing import Any
 
 import pytest
 
-from aegisops.providers.mock import MockOpsProvider
-from aegisops.providers.models import HealthStatus
-from aegisops.providers.protocol import (
+from cloudops_harness.providers.mock import MockOpsProvider
+from cloudops_harness.providers.models import HealthStatus
+from cloudops_harness.providers.protocol import (
     OpsProviderError,
     ProviderUnavailable,
     ToolTimeoutError,

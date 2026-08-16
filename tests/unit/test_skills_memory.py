@@ -8,15 +8,15 @@ from pathlib import Path
 
 import pytest
 
-from aegisops.config.settings import Settings
-from aegisops.memory.preferences import PreferenceStore
-from aegisops.skills.installer import (
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.memory.preferences import PreferenceStore
+from cloudops_harness.skills.installer import (
     SkillApprovalRequired,
     SkillInstaller,
     SkillPackage,
     SkillSecurityError,
 )
-from aegisops.skills.registry import SkillRegistry
+from cloudops_harness.skills.registry import SkillRegistry
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -155,7 +155,7 @@ def test_zip_package_extracts_files() -> None:
 
 
 def test_progressive_disclosure_main_context_has_metadata_not_body() -> None:
-    from aegisops.agents.context import assemble_main_messages
+    from cloudops_harness.agents.context import assemble_main_messages
 
     registry = SkillRegistry(PROJECT_ROOT / "skills")
     body = registry.load_body("latency-analysis")

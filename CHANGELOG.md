@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.1 — Final Resume Release (2026-08-16)
+
+- Project renamed from AegisOps to CloudOps Harness (package `cloudops_harness`, env prefix `CLOUDOPS_`, legacy import shim kept).
+- Tool call limit is now run-scoped (ContextVar `ToolCallBudget`); global telemetry split from enforcement; concurrency regression tests added.
+- `dry_run_action` is actually registered in `ToolRegistry`; L2/L3 approval payloads contain valid `before_state / expected_impact / rollback_method / valid=true`.
+- DockerSandboxBackend mounts a writable `/workspace` tmpfs next to the read-only root; real-Docker smoke test added (auto-skip without daemon).
+- SandboxManager.rebuild now hot-swaps a `SandboxBackend` (never Proxy→Proxy); triple-recovery identity test added.
+- Central `validate_identifier()` for user_id/thread_id + path containment; path-traversal tests added; optional thread ownership checks (403) in history/resume.
+- Recovery latency now measures failure→rebuild→hot-swap→retry success (not post-recovery command duration); payload and trace include failed/replacement backend + rebuild/retry/total ms.
+- Release consistency: version 0.2.1, evaluation n=110, 11 middleware, planning states include `skipped`, security claims scoped honestly.
+
 ## v0.2.0 — 2026-08-16（专项整改）
 
 ### Added

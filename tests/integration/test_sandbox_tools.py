@@ -6,15 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from aegisops.agents.runtime import AegisRuntime
-from aegisops.config.settings import Settings
-from aegisops.runtime_context import current_user_id
+from cloudops_harness.agents.runtime import CloudOpsRuntime
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.runtime_context import current_user_id
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture()
-def runtime(tmp_path) -> AegisRuntime:
+def runtime(tmp_path) -> CloudOpsRuntime:
     settings = Settings(
         _env_file=None,
         environment="test",
@@ -23,7 +23,7 @@ def runtime(tmp_path) -> AegisRuntime:
         skills_dir=PROJECT_ROOT / "skills",
         sandbox_backend="local",
     )
-    return AegisRuntime(settings)
+    return CloudOpsRuntime(settings)
 
 
 @pytest.mark.asyncio

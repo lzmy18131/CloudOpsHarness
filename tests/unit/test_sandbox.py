@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from aegisops.sandbox.breaker import SandboxCircuitBreaker
-from aegisops.sandbox.docker_backend import DockerSandboxBackend
-from aegisops.sandbox.local_backend import LocalSandboxBackend
-from aegisops.sandbox.manager import SandboxManager
-from aegisops.sandbox.protocol import SandboxBackendProxy
+from cloudops_harness.sandbox.breaker import SandboxCircuitBreaker
+from cloudops_harness.sandbox.docker_backend import DockerSandboxBackend
+from cloudops_harness.sandbox.local_backend import LocalSandboxBackend
+from cloudops_harness.sandbox.manager import SandboxManager
+from cloudops_harness.sandbox.protocol import SandboxBackendProxy
 
 
 @pytest.fixture()
@@ -159,6 +159,7 @@ async def test_docker_backend_builds_hardened_run_command(monkeypatch) -> None:
     assert "--security-opt" in args and "no-new-privileges" in args
     assert "--read-only" in args
     assert "--pids-limit" in args
+    assert any(a.startswith("/workspace:") for a in args)  # writable workspace tmpfs
     assert "-v" not in args  # no host volume mounts
     await backend.execute('python -c "print(1)"')
     assert captured[1][2] == "sh"

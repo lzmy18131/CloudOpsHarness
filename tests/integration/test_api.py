@@ -8,8 +8,8 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from tests.integration.test_main_agent import make_scenario
 
-from aegisops.api.app import create_app
-from aegisops.config.settings import Settings
+from cloudops_harness.api.app import create_app
+from cloudops_harness.config.settings import Settings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

@@ -1,14 +1,14 @@
-# AegisOps
+# CloudOps Harness
 
-**一句话定位**：AegisOps 是一个基于 Harness Engineering 的企业级 AIOps Multi-Agent 智能故障响应平台——多个专业 Agent 在一个安全、可恢复、可审计的 LangGraph Runtime 中完成故障诊断、根因分析、修复建议、高风险操作审批、执行与事后报告。
+**一句话定位**：CloudOps Harness 是一个基于 Harness Engineering 的企业级 AIOps Multi-Agent 智能故障响应平台——多个专业 Agent 在一个安全、可恢复、可审计的 LangGraph Runtime 中完成故障诊断、根因分析、修复建议、高风险操作审批、执行与事后报告。
 
-**AegisOps — Harness-Engineered Multi-Agent Platform for AIOps Incident Response.**
+**CloudOps Harness — Harness-Engineered Multi-Agent Platform for AIOps Incident Response.**
 
 ## 1. Why
 
 传统 Agent 处理长周期 IT 故障排查任务时会遇到五类工程问题：
 
-| 问题 | AegisOps 的 Harness 机制 |
+| 问题 | CloudOps Harness 的 Harness 机制 |
 |---|---|
 | Context explosion（原始日志/指标淹没主 Agent） | SubAgent 独立上下文，主 Agent 只收 Pydantic 结构化证据摘要 |
 | Tool misuse（模型绕过限制执行生产变更） | Risk Policy L0–L3 + ToolRegistry 边界强制 + 双层 HITL interrupt |
@@ -24,7 +24,7 @@ FastAPI :8090
   ├─ POST /api/chat/{id}/resume   Command(resume={supplement|decisions})
   ├─ GET/DELETE /api/history · GET /api/traces · GET /api/threads/{id}/state
   │
-  ├─ MiddlewareStack (10, 可插拔/可关闭/有日志)
+  ├─ MiddlewareStack (11, 可插拔/可关闭/有日志)
   ├─ LangGraph graph: prepare → planner(13-step todo) → 4 SubAgents
   │      → synthesize(RCA) → executor(HITL) → pause(interrupt) → verify → report
   ├─ ModelAdapter: OpenAI-compatible (DeepSeek/OpenAI/Qwen) 或 FakeLLM (offline)
@@ -40,29 +40,29 @@ FastAPI :8090
 无需任何 API Key（默认 FakeLLM 离线确定性驱动）：
 
 ```bash
-git clone <repo> && cd AegisOps
+git clone <repo> && cd CloudOps Harness
 python -m venv .venv
 # Windows: .venv\Scripts\activate   /  Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
 # Demo 1: bad deployment → HITL approve → rollback → verify → report
-python -m aegisops.demo --demo 1
+python -m cloudops_harness.demo --demo 1
 # Demo 2: DB pool exhaustion → sandbox analysis → remediation
-python -m aegisops.demo --demo 2
+python -m cloudops_harness.demo --demo 2
 # Demo 3: dangerous action REJECTED → safe alternative，不执行生产变更
-python -m aegisops.demo --demo 3
+python -m cloudops_harness.demo --demo 3
 # Demo 4: sandbox crash → automatic recovery → HITL → SQLite 重启 → resume
-python -m aegisops.demo --demo 4
+python -m cloudops_harness.demo --demo 4
 
 # Web UI + SSE
-uvicorn aegisops.api.app:create_app --factory --port 8090
+uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 # 打开 http://127.0.0.1:8090
 ```
 
 ## 4. Harness Design
 
 - **Planning**：`PlanStep(pending/in_progress/completed/failed)` 持久化在 graph state，SSE `plan` 事件实时推送。
-- **SubAgent 声明式**：`src/aegisops/agents/subagents/configs/*.yaml`。新增 Agent = 新增一个 YAML；`load_subagent_configs / resolve_subagent_tools / validate_subagent_config`。
+- **SubAgent 声明式**：`src/cloudops_harness/agents/subagents/configs/*.yaml`。新增 Agent = 新增一个 YAML；`load_subagent_configs / resolve_subagent_tools / validate_subagent_config`。
 - **Context Engineering 四层**：Input（policy+偏好+skills frontmatter）→ Isolation（transcript 永不进主上下文）→ Compression（阈值 offload+摘要）→ Long-term Memory（用户偏好；CMDB 事实一律走工具）。
 - **Memory vs Database facts**：`PreferenceStore` 只存偏好；owner/version/dependency/restart policy 从 Service Catalog 工具查询。
 - **Skills**：启动只注入 name/description/metadata，需要时 `load_body()`；动态安装经 URL allowlist → 类型/大小限制 → 静态检查 → 沙箱测试 → 审批。
@@ -95,10 +95,10 @@ uvicorn aegisops.api.app:create_app --factory --port 8090
 
 ## 8. Evaluation
 
-**结果全部来自真实运行 artifact**（`eval_results/*/summary.json`），禁止伪造。离线确定性评测（FakeLLM，n=100）与真实 LLM 评测（需 key）使用同一 harness。
+**结果全部来自真实运行 artifact**（`eval_results/*/summary.json`），禁止伪造。离线确定性评测（FakeLLM，n=110）与真实 LLM 评测（需 key）使用同一 harness。
 
 <!-- EVAL_RESULTS -->
-当前真实 artifact：`eval_results/offline_20260816T030945Z/summary.json`
+当前真实 artifact：`eval_results/offline_20260816T045911Z/summary.json`
 （tag `offline-fake-llm-n110`，n=110 × 5 systems，2026-08-16 UTC）。
 
 | 指标 | Single | Multi | Multi 无隔离 | **Harness** | Harness 无恢复 |
@@ -109,28 +109,24 @@ uvicorn aegisops.api.app:create_app --factory --port 8090
 | Evidence Completeness | 1.000 | 0.984 | 0.984 | 0.984 | 0.984 |
 | Unsafe Action（危险场景） | 1.000 | 1.000 | 1.000 | **0.000** | 0.000 |
 | Unsafe Execution Count | 10 | 10 | 10 | **0** | 0 |
-| HITL Compliance / Recall | 0.000 | 0.000 | 0.000 | **1.000** | 1.000 |
-| Recovery Success（10 个沙箱故障场景） | 0.000 | 1.000 | 1.000 | **1.000** | 0.000 |
-| Mean Recovery Latency (ms) | - | 159.3 | 173.4 | 159.5 | - |
-| Remediation Verification Rate | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Resume Success（missing-info 场景） | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Mean Main-Context Tokens | 0* | 1324.9 | 1368.8 | 1324.9 | 1324.9 |
-| Mean Unnecessary Tool Rate | 0.000 | 0.420 | 0.420 | 0.420 | 0.420 |
-| Mean Tool Calls | 5.41 | 27.45 | 27.45 | 27.36 | 27.36 |
-| Mean LLM Calls | 6.41 | 43.45 | 43.45 | 43.45 | 43.45 |
-| Mean Token Cost | 4799.2 | 39171.5 | 39221.7 | 39172.8 | 39170.4 |
-| Mean Latency (ms) | 56.8 | 121.3 | 124.9 | 123.7 | 109.2 |
-
-*Single-Agent 没有 main/subagent 分离，`main_context_tokens` 不适用，记为 0。
+| HITL Recall/Compliance | 0.000 | 0.000 | 0.000 | **1.000** | 1.000 |
+| Recovery Success（10 个沙箱故障场景） | 0/10 | 10/10 | 10/10 | **10/10** | 0/10 |
+| Recovery Latency ms (mean/median/P95) | - | 159.3/156.0/172.0 | 159.3/156.0/172.0 | 159.5/156.5/172.0 | - |
+| Resume Success | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| Mean Main-Context Tokens | n/a | 1326.9 | 1372.8 | 1326.9 | 1326.9 |
+| Mean Tool Calls | 5.41 | 27.46 | 27.46 | 27.46 | 27.46 |
+| Mean LLM Calls | 6.41 | 43.46 | 43.46 | 43.46 | 43.46 |
+| Mean Token Cost | 4803.4 | 39283.3 | 39337.0 | 39280.9 | 39274.3 |
+| Mean Latency (ms) | 56.0 | 115.6 | 107.8 | 110.2 | 95.9 |
 
 配对统计（同一 110 个 incident 配对运行）：
-- Unsafe action：Single vs Harness 与 Multi vs Harness 的 McNemar p=0.002（10 个 discordant 对全部在无 HITL 侧）。
-- Recovery：Harness vs Harness-no-recovery p=0.002（10 对全部在 Harness 侧）。
-- Context isolation ablation：关闭隔离后 main-context 平均 +43.94 token（95% CI [+43.06, +44.84]），总 token +50.19（95% CI [+46.37, +54.24]），latency 差异不显著。
-- Single vs Harness：token −34373.6（95% CI [−34681.4, −34075.1]），latency −66.9 ms（95% CI [−71.7, −62.7]）。
-- Bucket（Single vs Harness）：simple n=20 / multi_source n=10 / multi_hop n=20 / complex n=50 / failure_injection n=20；FakeLLM 下所有 bucket 的 RCA 都达上限，有效差异集中在成本（Multi 比 Single 多约 33k–37k token）与 unsafe（Harness=0）。
+- Unsafe action：Single/Multi vs Harness 的 McNemar p=0.002（10 个 discordant 对全部在无 HITL 侧）。
+- Recovery：Harness vs Harness-no-recovery p=0.002（0/10 vs 10/10）。
+- Context isolation：关闭隔离后 main-context +45.9 token（95% CI [44.9, 46.9]，artifact 可复算），总 token +53.7；绝对值受截断策略限制，不夸大。
+- Single vs Harness：token −34477.5（95% CI 见 artifact），latency −54.3 ms。
+- Bucket（Single vs Harness）：simple n=20 / multi_source n=10 / multi_hop n=20 / complex n=50 / failure_injection n=20；FakeLLM 下 RCA 全部到上限，有效差异是成本与 unsafe 护栏。
 
-诚实结论：FakeLLM 是确定性控制器，RCA/Completion 在所有系统都达上限；**该评测度量的是 harness 正确性（HITL 拦截、恢复、resume、隔离成本），不是语言模型能力**。真实 LLM 结果必须用 `scripts/run_real_eval.py` 在独立目录生成，本仓库不含任何伪造数字。
+诚实结论：FakeLLM 是确定性控制器，**本评测验证的是 workflow correctness、安全护栏、恢复与 harness overhead，不是真实模型推理智能**。真实 LLM 结果须用 `scripts/run_real_eval.py` 在独立目录生成；本仓库不含伪造数字。
 <!-- /EVAL_RESULTS -->
 
 统计方法：binary 指标 McNemar 精确检验；continuous 指标 paired bootstrap 95% CI。方法论见 [`EVALUATION.md`](EVALUATION.md)。
@@ -149,7 +145,7 @@ uvicorn aegisops.api.app:create_app --factory --port 8090
 | HITL interrupt + resume 不重跑 | `pause` 唯一 interrupt + SQLite checkpoint | `test_main_agent.py`, `test_checkpoint_resume.py`（含 tool call 计数断言） |
 | 进程重启后 resume | `AsyncSqliteSaver` | `test_checkpoint_resume.py` |
 | Sandbox crash 自动恢复 | `manager.rebuild()` + `proxy.replace_backend()` | `tests/failure/test_sandbox_recovery.py` |
-| 用户隔离（sandbox/memory/history） | 每 user 独立 workspace/文件 | `test_sandbox.py`, `test_security.py`, `test_storage.py` |
+| 用户隔离（sandbox/memory/history） | 每 user 独立 workspace/文件；user_id/thread_id 中央校验 | `test_sandbox.py`, `test_security.py`, `test_storage.py` |
 | Circuit breaker 状态机 + transition 记录 | `CircuitBreaker.transitions` | `test_tools.py::test_circuit_breaker_records_transitions` |
 | 无限循环防护 | `LimitedModelAdapter` / tool limit / max_plan_steps / delegation depth | 代码 `llm/base.py`, `nodes.py`；行为由 limit 测试覆盖 |
 | SSE 统一 envelope | `agents/events.py` | `tests/unit/test_events.py`, `test_api.py` |
@@ -171,15 +167,17 @@ pytest -q
 ruff check src tests scripts
 # 服务
 cp .env.example .env        # 可选：填入 LLM_API_KEY 使用真实模型
-uvicorn aegisops.api.app:create_app --factory --port 8090
+uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 # 可选 MongoDB（默认 file/SQLite 零依赖）
-docker compose up -d mongo   # 然后 AEGIS_STORAGE_BACKEND=mongo
+docker compose up -d mongo   # 然后 CLOUDOPS_STORAGE_BACKEND=mongo
 ```
 
 ## 11. Limitations
 
-- LocalSandboxBackend 仅用于开发演示；生产/不可信输入必须 `AEGIS_SANDBOX_BACKEND=docker`。
+- **User isolation is logical isolation between supplied user IDs, not a production authentication/authorization boundary.** API 在提供 user_id 时执行 thread ownership 校验；但 Demo Identity 不能替代登录系统。
+- DockerSandboxBackend provides project-level execution isolation (read-only root, restricted writable workspace, resource controls). It is not a hardened multi-tenant microVM sandbox.
+- LocalSandboxBackend 仅用于开发演示；生产/不可信输入必须 `CLOUDOPS_SANDBOX_BACKEND=docker`。
 - FakeLLM 评测度量的是 **harness 正确性**，不是语言模型能力；真实 LLM 结果用 `scripts/run_real_eval.py` 单独生成。
 - 离线 FakeLLM 100 场景下，Single/Multi/Harness 的 RCA 正确率都接近上限（确定性控制器知道场景），对比的有效信息集中在 **unsafe/HITL 合规、恢复能力与 token/latency 成本**。见 EVALUATION.md 的诚实说明。
-- MCP 默认 in-process transport；跨进程 stdio：`python -m aegisops.mcp.server`。
+- MCP 默认 in-process transport；跨进程 stdio：`python -m cloudops_harness.mcp.server`。
 - 无向量数据库 / GraphRAG（刻意不做，聚焦 Harness）。

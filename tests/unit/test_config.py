@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from aegisops.config.logging_conf import JsonLineFormatter, setup_logging
-from aegisops.config.settings import Settings
+from cloudops_harness.config.logging_conf import JsonLineFormatter, setup_logging
+from cloudops_harness.config.settings import Settings
 
 
 def test_settings_defaults_resolve_project_paths() -> None:
@@ -28,8 +28,8 @@ def test_settings_llm_env_aliases(monkeypatch) -> None:
 
 
 def test_settings_prefixed_env_vars(monkeypatch) -> None:
-    monkeypatch.setenv("AEGIS_LLM_API_KEY", "sk-prefixed")
-    monkeypatch.setenv("AEGIS_PORT", "1234")
+    monkeypatch.setenv("CLOUDOPS_LLM_API_KEY", "sk-prefixed")
+    monkeypatch.setenv("CLOUDOPS_PORT", "1234")
     settings = Settings(_env_file=None)
     assert settings.llm_api_key == "sk-prefixed"
     assert settings.port == 1234
@@ -45,7 +45,7 @@ def test_ensure_dirs_creates_runtime_tree(tmp_path) -> None:
 
 def test_json_line_formatter_emits_json() -> None:
     record = logging.LogRecord(
-        name="aegisops.test",
+        name="cloudops_harness.test",
         level=logging.INFO,
         pathname=__file__,
         lineno=1,

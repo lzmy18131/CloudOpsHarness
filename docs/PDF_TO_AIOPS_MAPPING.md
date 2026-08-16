@@ -1,4 +1,4 @@
-# PDF → AegisOps Mapping（Harness 机制继承与重映射）
+# PDF → CloudOps Harness Mapping（Harness 机制继承与重映射）
 
 > 来源文档：《基于 Harness Engineering 架构的企业实战项目》（PDF，35 页，约 5.7MB）。
 > 本文档回答一个问题：原项目的哪些 **Harness 机制** 值得继承，它们被如何重新实现为 AIOps 场景，以及落在本仓库的哪个模块。
@@ -13,11 +13,11 @@
 
 ## 1. 机制继承映射总表
 
-| # | PDF 原机制 | 是否保留 | AegisOps（AIOps）版本实现 | 对应代码模块 |
+| # | PDF 原机制 | 是否保留 | CloudOps Harness（AIOps）版本实现 | 对应代码模块 |
 |---|---|---|---|---|
-| 1 | 任务 Planning / write_todos | ✅ 保留并强化 | `PlanStep` 状态机（pending/in_progress/completed/failed），planner node 生成 13 步标准故障排查链，保存于 graph state，SSE `plan` 事件推送 | `agents/planner.py`, `agents/state.py` |
+| 1 | 任务 Planning / write_todos | ✅ 保留并强化 | `PlanStep` 状态机（pending/in_progress/completed/failed/skipped），planner node 生成 13 步标准故障排查链，保存于 graph state，SSE `plan` 事件推送 | `agents/planner.py`, `agents/state.py` |
 | 2 | Main Agent + SubAgent 委派 | ✅ 保留 | Incident Commander（主）+ Observability / LogAnalysis / ChangeAnalysis / Remediation 四个专业 SubAgent。主 Agent 只收结构化摘要 | `agents/graph.py`, `agents/main_agent.py`, `agents/subagents/` |
-| 3 | SubAgent YAML 声明式配置 + 弹性加载 | ✅ 保留 | `src/aegisops/agents/subagents/configs/*.yaml`，`load_subagent_configs()` / `resolve_subagent_tools()` / `validate_subagent_config()`；新增 SubAgent = 新增 YAML | `agents/subagents/loader.py` + `configs/` |
+| 3 | SubAgent YAML 声明式配置 + 弹性加载 | ✅ 保留 | `src/cloudops_harness/agents/subagents/configs/*.yaml`，`load_subagent_configs()` / `resolve_subagent_tools()` / `validate_subagent_config()`；新增 SubAgent = 新增 YAML | `agents/subagents/loader.py` + `configs/` |
 | 4 | Context Input（启动加载） | ✅ 保留 | 每轮运行注入：runtime policy、用户偏好、服务上下文、可用 Skills frontmatter、调用预算 | `middleware/context_injection.py`, `middleware/base.py` |
 | 5 | Context Isolation（SubAgent 隔离） | ✅ 保留 | SubAgent 独立消息窗口与工具白名单；raw logs/metrics 留在 SubAgent context，主 Agent 只接收 `SubAgentReport`（Pydantic 结构化摘要） | `agents/subagents/runner.py`, `agents/state.py` |
 | 6 | Context Compression（阈值自动摘要/offload） | ✅ 保留 | `ContextCompressor`：主上下文超过 token 阈值后对旧轮次摘要，保留 decisions/evidence/plan/unresolved_hypotheses；工具结果超长自动截断并 offload | `agents/context.py` |
@@ -43,7 +43,7 @@
 
 ## 2. AIOps 业务映射
 
-| 采购原项目 | AegisOps |
+| 采购原项目 | CloudOps Harness |
 |---|---|
 | 供应商/物料/订单数据 | service catalog / topology / metrics / logs / deployments / config history / historical incidents |
 | 下单流程 | Incident Response 流程：triage → plan → observe → analyze → hypothesize → remediate → verify → postmortem |
@@ -65,7 +65,7 @@
 9. cpu-saturation
 10. cascading-service-failure
 
-每个 scenario 的 ground truth 字段：`incident_id / service / fault_type / root_cause / relevant_metrics / relevant_logs / relevant_changes / expected_tools / recommended_action / dangerous_action`。数据集由模板生成器生产 60+ 条非重复记录（见 `src/aegisops/evaluation/scenario_builder.py` 与 `fixtures/incidents/scenarios.json`）。
+每个 scenario 的 ground truth 字段：`incident_id / service / fault_type / root_cause / relevant_metrics / relevant_logs / relevant_changes / expected_tools / recommended_action / dangerous_action`。数据集由模板生成器生产 60+ 条非重复记录（见 `src/cloudops_harness/evaluation/scenario_builder.py` 与 `fixtures/incidents/scenarios.json`）。
 
 ## 4. 继承后不允许出现的内容（验收红线）
 

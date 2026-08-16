@@ -9,8 +9,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from aegisops.api.app import create_app
-from aegisops.config.settings import Settings
+from cloudops_harness.api.app import create_app
+from cloudops_harness.config.settings import Settings
 
 
 @pytest.fixture()

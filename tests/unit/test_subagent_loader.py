@@ -6,15 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from aegisops.agents.subagents.loader import (
+from cloudops_harness.agents.subagents.loader import (
     SubAgentConfigError,
     load_subagent_configs,
     resolve_subagent_tools,
     validate_subagent_config,
 )
-from aegisops.config.settings import Settings
-from aegisops.providers.mock import MockOpsProvider
-from aegisops.tools.registry import ToolRegistry
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.providers.mock import MockOpsProvider
+from cloudops_harness.tools.registry import ToolRegistry
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -43,7 +43,7 @@ def test_resolve_subagent_tools_maps_names(registry) -> None:
 
 
 def test_write_tools_above_l1_are_forbidden_in_subagent_config(registry) -> None:
-    from aegisops.agents.subagents.loader import SubAgentConfig
+    from cloudops_harness.agents.subagents.loader import SubAgentConfig
 
     config = SubAgentConfig(
         name="rogue",
@@ -57,7 +57,7 @@ def test_write_tools_above_l1_are_forbidden_in_subagent_config(registry) -> None
 
 
 def test_unknown_tool_reported(registry) -> None:
-    from aegisops.agents.subagents.loader import SubAgentConfig
+    from cloudops_harness.agents.subagents.loader import SubAgentConfig
 
     config = SubAgentConfig(
         name="broken",
@@ -71,7 +71,7 @@ def test_unknown_tool_reported(registry) -> None:
 
 
 def test_resolve_unknown_tool_raises(registry) -> None:
-    from aegisops.agents.subagents.loader import SubAgentConfig
+    from cloudops_harness.agents.subagents.loader import SubAgentConfig
 
     config = SubAgentConfig(
         name="broken", description="x", tools=["not_a_tool"], skills=[], system_prompt="x"

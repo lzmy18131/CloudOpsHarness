@@ -5,11 +5,11 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel, Field
 
-from aegisops.config.settings import Settings
-from aegisops.llm.fake import FakeLLM, ScriptedTurn
-from aegisops.llm.models import LLMMessage
-from aegisops.llm.openai_adapter import OpenAICompatibleAdapter
-from aegisops.llm.structured import StructuredOutputError, generate_structured, parse_json_object
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.llm.fake import FakeLLM, ScriptedTurn
+from cloudops_harness.llm.models import LLMMessage
+from cloudops_harness.llm.openai_adapter import OpenAICompatibleAdapter
+from cloudops_harness.llm.structured import StructuredOutputError, generate_structured, parse_json_object
 
 
 class TinyModel(BaseModel):

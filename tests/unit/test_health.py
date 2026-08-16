@@ -8,7 +8,7 @@ def test_health_returns_ok(client) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"
-    assert payload["app"] == "AegisOps"
+    assert payload["app"] == "CloudOps Harness"
     assert payload["llm_mode"] == "offline-fake"
     assert payload["storage_backend"] == "file"
 

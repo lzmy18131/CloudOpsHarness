@@ -1,105 +1,60 @@
-# AegisOps Build Report（专项整改后）
+# CloudOps Harness Build Report (v0.2.1 Final Resume Release)
 
-- 项目根目录：`D:\AegisOps`
-- 完成时间：2026-08-16（UTC）
-- Python：3.11.15（venv `D:\AegisOps\.venv`）
-- 依赖：见 `pyproject.toml`（全部 pin：langgraph 1.2.11 / fastapi 0.141.1 /
-  pydantic 2.13.4 / fastmcp 3.4.7 / openai 2.54.0 …）
-- 最终验证：**117 passed**（见下）；`ruff check src tests scripts` ✅；
-  `ruff format --check src tests scripts` ✅
+- 项目根目录：本地仓库（GitHub: lzmy18131/CloudOpsHarness）
+- Python 3.11.15 · venv `D:\AegisOps\.venv`
+- 依赖全部固定（langgraph 1.2.11 / fastapi 0.141.1 / pydantic 2.13.4 / fastmcp 3.4.7 / openai 2.54.0 …）
+- `ruff check src tests scripts` ✅ · `ruff format --check` ✅
+- Tests：**124 passed, 1 skipped**（skipped = real-Docker smoke，本机 daemon 不可用）
 
-## 1. 整改变更（相对 v0.1.0）
+## v0.2.1 Blockers Fixed
 
-### 删除的错误设计
-- 无（核心架构未降级）；修正了早期“compression 只测不用”、事件无 envelope、
-  评测无 bucket、recovery latency 被 PII 误伤等实现缺口。
+| Blocker | Before | Fix | Test |
+|---|---|---|---|
+| Tool call limit | Registry 进程级累计，跨 run 泄漏 | `ToolCallBudget` ContextVar，run-scoped；global_telemetry 仅统计 | per-run / concurrent / overflow 3 tests |
+| dry_run_action | registry 未注册，approval 捕获 error 当 payload | 注册 L0 工具 + valid payload 强制；invalid 直接阻断 HITL | registry + executor payload tests |
+| Docker workspace | read-only root 下 /workspace 不可写 | `--tmpfs /workspace:rw,nosuid,nodev,size=256m` | args test + real-Docker smoke（daemon 可用时运行，否则 skip） |
+| Sandbox proxy | rebuild 后 Proxy→Proxy→Backend | `_build_backend()` 返回 Backend，`replace_backend(new Backend)` | 连续 3 次 recovery：id(proxy) 不变、backend 更换、无嵌套 |
+| Identifier security | user_id/thread_id 直接拼路径 | `validate_identifier()` + path containment + API 403 ownership 检查 | traversal tests（../admin, ../../etc, /tmp/a, ../../../x） |
+| Recovery latency | 测的是恢复后单条命令 duration | failure→rebuild→hot-swap→retry 全链路计时 | payload `recovery` 字段 test；evaluation 读 total_recovery_ms |
+| Rename | AegisOps | CloudOps Harness（`cloudops_harness` package + `aegisops` import shim + CLOUDOPS_ env） | full regression |
+| Version | 0.1.0/0.2.0 | 0.2.1（pyproject/Settings/__init__/docs 一致） | n/a |
 
-### 核心架构变化 / 新增
-- **SSE 统一 envelope**：每个事件 `event_type/type/run_id/thread_id/source/
-  timestamp/sequence`；前端按 sequence 去重。
-- **Context compression 真正接入**：synthesize 前执行 `compress_main_context`，
-  保护 system/evidence/tail，记录 tokens before/after/ratio；`mean_main_context_tokens` 进入评测。
-- **Planning 硬限制**：`max_plan_steps`（超出标记 skipped → partial report）、
-  `max_delegation_depth` 守卫；`model_call_limit` 用 `LimitedModelAdapter` 硬停。
-- **Dry run**：新增 L0 工具 `dry_run_action`（planned change/before/expected/
-  rollback/risk），审批请求携带 `dry_run`。
-- **Evidence 可追溯**：`EvidenceItem.id/tool/timestamp/service/raw_ref`；
-  RCA 带 `supporting/contradicting_evidence`；change agent 输出
-  `temporal_correlation/correlation/causal_confidence`。
-- **Circuit breaker transitions** 持久记录。
-- **Verification**：`resolved` 标志 + before/after state。
-- **PII redaction**：工具结果进任何 Agent 上下文前脱敏 email/phone/api-key。
-- **Trace timeline**：tool_start(risk)/tool_end、agent_start/end、hitl_decision、
-  action_executed、verification、incident_report。
-- **Dataset 110 条**：新增 easy / dependency_chain / ambiguous bucket。
-- **评测指标**：新增 unsafe_execution_count、hitl_recall/precision、
-  recovery latency、remediation verification/resolution、resume success、
-  main-context tokens、unnecessary tool rate、delegation accuracy、bucket comparisons。
-- **Demo D**：sandbox crash → 自动恢复 → HITL → SQLite 重启 → resume。
+## Evaluation (真实运行)
 
-## 2. 测试
-
-| 类别 | 数量 | 关键用例 |
-|---|---|---|
-| unit | 88 | config/schemas/risk/tools/memory/skills/loader/sandbox/breaker/events/PII/structured-output 矩阵 |
-| integration | 14 | Main→SubAgent、MCP、HITL、checkpoint、SSE envelope、resume 不重跑、sandbox tools |
-| failure | 8 | tool timeout、invalid result、MCP down、Mongo fallback、LLM timeout retry、sandbox crash recovery |
-| security | 3 | prompt injection、risk-policy bypass、user memory isolation |
-| evaluation | 4 | dataset 110 不变量、metrics/stats、4-scenario harness 集成 |
-| **total** | **117 passed** | `pytest -q` |
-
-## 3. Evaluation（真实运行）
-
-- Artifact：`eval_results/offline_20260816T030945Z/summary.json`
-- 配置：FakeLLM（deterministic），n=110 × 5 systems，本地 Windows 开发机。
-- 真实 LLM：**未运行**（无 key）。`scripts/run_real_eval.py` 就绪，结果单独目录。
-
-关键结果（详见 `EVALUATION.md`）：
+- Artifact：`eval_results/offline_20260816T045911Z/summary.json`（n=110 × 5 systems，FakeLLM offline）
+- Real LLM：**NOT COMPLETED**（无 API key；`scripts/run_real_eval.py` 就绪）
 
 | | Single | Multi | Multi no-iso | Harness | Harness no-rec |
 |---|---|---|---|---|---|
-| Unsafe (dangerous) | 1.000 | 1.000 | 1.000 | **0.000** | 0.000 |
-| Unsafe executions | 10 | 10 | 10 | **0** | 0 |
+| RCA / Completion | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 |
+| Unsafe (dangerous) | 1.000 (10 exec) | 1.000 (10 exec) | 1.000 (10 exec) | **0.000 (0)** | 0.000 (0) |
 | HITL recall | 0.000 | 0.000 | 0.000 | **1.000** | 1.000 |
-| Recovery success | 0.000 | 1.000 | 1.000 | **1.000** | 0.000 |
-| Mean recovery latency ms | - | 159.3 | 173.4 | 159.5 | - |
+| Recovery | 0/10 | 10/10 | 10/10 | **10/10** | 0/10 |
+| Recovery latency mean/median/P95 ms | - | 159.3/156.0/172.0 | 159.3/156.0/172.0 | 159.5/156.5/172.0 | - |
 | Resume success | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Mean main-context tokens | n/a | 1324.9 | 1368.8 | 1324.9 | 1324.9 |
-| Mean token cost | 4799.2 | 39171.5 | 39221.7 | 39172.8 | 39170.4 |
-| Mean latency ms | 56.8 | 121.3 | 124.9 | 123.7 | 109.2 |
+| Main-context tokens | n/a | 1326.9 | 1372.8 | 1326.9 | 1326.9 |
+| Mean token cost | 4803.4 | 39283.3 | 39337.0 | 39280.9 | 39274.3 |
+| Mean latency ms | 56.0 | 115.6 | 107.8 | 110.2 | 95.9 |
 
-配对结论：
 - Unsafe：Single/Harness、Multi/Harness McNemar p=0.002。
 - Recovery：Harness vs no-recovery p=0.002。
-- Isolation：main context +43.94 token（95% CI [+43.06,+44.84]）。
-- Single vs Harness token −34373.6（CI [−34681.4,−34075.1]）。
-- Bucket：simple/multi_source/multi_hop/complex/failure_injection 见 artifact。
+- Isolation：main-context +45.9 token（CI 见 artifact）；不夸大为 “dramatically reduces”。
+- FakeLLM 结论：验证 harness/safety/recovery/overhead，不代表真实模型智能。
 
-## 4. Demo 验证
+## Demos & Smoke
 
-- Demo A（bad deployment approve）：✅ `rollback_release` → verify → report
-- Demo B（DB pool）：✅ sandbox 证据 → `apply_config_change`
-- Demo C（reject）：✅ Actions Taken=None + Rejected Actions + 安全替代
-- Demo D（sandbox crash/resume）：✅ 恢复 → HITL → SQLite 重启 → resume → done
-- 真实 uvicorn 冒烟：health/static/SSE/resume/history/traces 实测通过（API 集成测试覆盖）
+- Demo A：dry-run 成功 → HITL approve → rollback → verify → report ✅
+- Demo B：DB pool → sandbox → RCA ✅
+- Demo C：reject → no action → safe alternative ✅
+- Demo D：sandbox crash → 同 proxy 重建 → HITL → SQLite reopen → resume → finish ✅
+- uvicorn：health/SSE interrupt/resume/history/trace 实测 ✅
 
-## 5. Known Limitations / Remaining Issues
+## Limitations
 
-1. FakeLLM 评测只证明 harness correctness；真实 LLM 结果 NOT COMPLETED（无 key）。
-2. Sandbox recovery 注入样本 n=10/系统，不是 30；文档如实写。
-3. LocalSandboxBackend 非内核级隔离；不可信输入必须 Docker backend。
-4. MCP 默认 in-process transport；stdio 部署见 `python -m aegisops.mcp.server`。
-5. SQLite/file 存储单机设计；Mongo 为可选 extras。
-6. mypy 未纳入 CI（ruff + pytest 已覆盖 lint/行为；类型注解齐全但 strict mypy 未调通）。
-7. UI 是演示级，不做多连接历史回放。
-
-## 6. Reproduce
-
-```bash
-cd D:\AegisOps
-.venv\Scripts\python -m pip install -e ".[dev]"
-.venv\Scripts\python -m pytest -q
-.venv\Scripts\python -m ruff check src tests scripts
-.venv\Scripts\python scripts\run_eval.py --limit 20
-.venv\Scripts\python -m uvicorn aegisops.api.app:create_app --factory --port 8090
-```
+1. 真实 LLM evaluation NOT COMPLETED（无 key）。
+2. Docker real smoke 本机跳过（daemon/image 不可用）；CI 上 Docker 可用时自动执行。
+3. Sandbox recovery 注入样本 n=10；不做 30 的夸大。
+4. User isolation = logical isolation（Demo Identity），不是生产 authN/authZ；API 在提供 user_id 时校验 thread ownership。
+5. DockerSandboxBackend 是项目级隔离，不是 hardened microVM sandbox。
+6. LocalSandboxBackend 仅 dev fallback。
+7. mypy strict 未纳入 CI。

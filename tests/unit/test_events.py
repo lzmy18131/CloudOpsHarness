@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from aegisops.agents.events import make_event, next_sequence, reset_sequence
-from aegisops.runtime_context import current_run_id, current_thread_id
+from cloudops_harness.agents.events import make_event, next_sequence, reset_sequence
+from cloudops_harness.runtime_context import current_run_id, current_thread_id
 
 
 def test_event_envelope_has_required_fields() -> None:

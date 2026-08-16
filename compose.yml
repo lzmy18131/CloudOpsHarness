@@ -3,7 +3,7 @@ services:
   # The default file/SQLite storage works without any external service.
   mongo:
     image: mongo:7.0
-    container_name: aegisops-mongo
+    container_name: cloudops_harness-mongo
     ports:
       - "27017:27017"
     volumes:
@@ -14,25 +14,25 @@ services:
       timeout: 5s
       retries: 5
 
-  aegisops:
+  cloudops_harness:
     build: .
-    container_name: aegisops
+    container_name: cloudops_harness
     env_file:
       - .env
     environment:
-      AEGIS_HOST: 0.0.0.0
-      AEGIS_PORT: 8090
-      AEGIS_STORAGE_BACKEND: ${AEGIS_STORAGE_BACKEND:-file}
-      AEGIS_MONGO_URI: mongodb://mongo:27017
-      AEGIS_SANDBOX_BACKEND: ${AEGIS_SANDBOX_BACKEND:-local}
+      CLOUDOPS_HOST: 0.0.0.0
+      CLOUDOPS_PORT: 8090
+      CLOUDOPS_STORAGE_BACKEND: ${CLOUDOPS_STORAGE_BACKEND:-file}
+      CLOUDOPS_MONGO_URI: mongodb://mongo:27017
+      CLOUDOPS_SANDBOX_BACKEND: ${CLOUDOPS_SANDBOX_BACKEND:-local}
     ports:
       - "8090:8090"
     depends_on:
       mongo:
         condition: service_healthy
     volumes:
-      - aegisops-data:/app/data
+      - cloudops_harness-data:/app/data
 
 volumes:
   mongo-data:
-  aegisops-data:
+  cloudops_harness-data:

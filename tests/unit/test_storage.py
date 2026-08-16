@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from aegisops.storage.file_backend import FileThreadStorage
+from cloudops_harness.storage.file_backend import FileThreadStorage
 
 
 @pytest.fixture()

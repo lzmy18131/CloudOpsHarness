@@ -10,8 +10,8 @@ import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
-from aegisops.agents.runtime import AegisRuntime
-from aegisops.config.settings import Settings
+from cloudops_harness.agents.runtime import CloudOpsRuntime
+from cloudops_harness.config.settings import Settings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -100,7 +100,7 @@ def make_scenario() -> dict[str, Any]:
 
 
 @pytest.fixture()
-def runtime(tmp_path) -> AegisRuntime:
+def runtime(tmp_path) -> CloudOpsRuntime:
     settings = Settings(
         _env_file=None,
         environment="test",
@@ -108,7 +108,7 @@ def runtime(tmp_path) -> AegisRuntime:
         fixtures_dir=PROJECT_ROOT / "fixtures",
         skills_dir=PROJECT_ROOT / "skills",
     )
-    runtime = AegisRuntime(settings)
+    runtime = CloudOpsRuntime(settings)
     scenario = make_scenario()
     runtime.scenario_index = {scenario["incident_id"]: scenario}
     return runtime
@@ -131,7 +131,12 @@ async def test_full_approval_flow_end_to_end(runtime) -> None:
         config=config,
     )
     assert first["pending_interrupt"]["type"] == "approval"
-    assert first["pending_interrupt"]["action_requests"][0]["tool_name"] == "rollback_release"
+    request = first["pending_interrupt"]["action_requests"][0]
+    assert request["tool_name"] == "rollback_release"
+    assert request["dry_run"]["valid"] is True
+    assert "before_state" in request["dry_run"]
+    assert "expected_impact" in request["dry_run"] or "expected_result" in request["dry_run"]
+    assert "rollback_method" in request["dry_run"]
     assert first["remediation_plan"]["requires_approval"] is True
 
     final = await graph.ainvoke(

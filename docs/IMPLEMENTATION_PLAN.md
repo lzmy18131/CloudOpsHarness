@@ -1,4 +1,4 @@
-# AegisOps Implementation Plan
+# CloudOps Harness Implementation Plan
 
 执行顺序严格按依赖方向推进；每阶段完成标准 = **代码 + 测试 + lint 全绿 + BUILD_STATUS 更新**。不允许测试失败进入下一阶段。
 

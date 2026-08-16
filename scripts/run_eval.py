@@ -11,9 +11,9 @@ import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 
-from aegisops.config.settings import Settings
-from aegisops.evaluation.harness import load_default_scenarios, run_experiment
-from aegisops.evaluation.runners import SystemConfig
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.evaluation.harness import load_default_scenarios, run_experiment
+from cloudops_harness.evaluation.runners import SystemConfig
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -66,7 +66,7 @@ async def run(limit: int | None, data_dir: Path) -> Path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="AegisOps offline evaluation")
+    parser = argparse.ArgumentParser(description="CloudOps Harness offline evaluation")
     parser.add_argument("--limit", type=int, default=None, help="limit scenarios (default: full dataset)")
     parser.add_argument("--data-dir", type=Path, default=PROJECT_ROOT / "data" / "eval")
     args = parser.parse_args()

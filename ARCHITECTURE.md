@@ -1,4 +1,4 @@
-# AegisOps Architecture
+# CloudOps Harness Architecture
 
 ## 1. Layered view
 

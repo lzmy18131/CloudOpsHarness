@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import pytest
 
-from aegisops.sandbox.health import SandboxHealthCheck, SandboxHealthMiddleware
-from aegisops.sandbox.local_backend import LocalSandboxBackend
-from aegisops.sandbox.manager import SandboxManager
-from aegisops.sandbox.protocol import SandboxBackendProxy
+from cloudops_harness.sandbox.health import SandboxHealthCheck, SandboxHealthMiddleware
+from cloudops_harness.sandbox.local_backend import LocalSandboxBackend
+from cloudops_harness.sandbox.manager import SandboxManager
+from cloudops_harness.sandbox.protocol import SandboxBackendProxy
 
 
 class DyingBackend(LocalSandboxBackend):
@@ -89,3 +89,48 @@ async def test_manager_ensure_rebuilds_dead_user_proxy(recovery_env) -> None:
     backend.dead = True
     proxy2 = await manager.ensure("alice")
     assert proxy2.backend_id != proxy.backend_id
+
+
+@pytest.mark.asyncio
+async def test_three_consecutive_recoveries_keep_proxy_stable_without_nesting(recovery_env, tmp_path) -> None:
+    from cloudops_harness.sandbox.protocol import SandboxBackendProxy
+
+    manager, _ = recovery_env
+    proxy = await manager.ensure("alice")
+    original_proxy_id = id(proxy)
+    for index in range(3):
+        dying = DyingBackend(tmp_path / f"dying-{index}", "alice")
+        await dying.create()
+        dying.dead = True
+        previous = proxy.backend
+        proxy.replace_backend(dying)
+        assert await manager.rebuild(proxy) is True
+        assert id(proxy) == original_proxy_id
+        assert id(proxy.backend) != id(previous)
+        assert not isinstance(proxy.backend, SandboxBackendProxy), "Proxy -> Proxy nesting detected"
+        assert (await proxy.execute('python -c "print(1)"')).ok is True
+
+
+@pytest.mark.asyncio
+async def test_recovery_latency_payload_measures_rebuild_plus_retry(recovery_env, tmp_path) -> None:
+    from cloudops_harness.evaluation.runners import DyingSandbox
+    from cloudops_harness.sandbox.breaker import SandboxCircuitBreaker
+    from cloudops_harness.tools.sandbox_tools import SandboxToolBridge
+
+    manager, _ = recovery_env
+    proxy = await manager.ensure("alice")
+    dying = DyingSandbox(tmp_path / "recovery-latency-dying", "alice")
+    await dying.create()
+    dying.dead = True
+    proxy.replace_backend(dying)
+    from cloudops_harness.runtime_context import current_user_id
+
+    current_user_id.set("alice")
+    bridge = SandboxToolBridge(manager, SandboxCircuitBreaker(), auto_recovery=True)
+    result = await bridge.execute('python -c "print(1)"')
+    recovery = result.get("recovery", {})
+    assert recovery["success"] is True
+    assert recovery["failed_backend"] != recovery["replacement_backend"]
+    assert recovery["rebuild_ms"] >= 0 and recovery["retry_ms"] >= 0
+    assert recovery["total_recovery_ms"] == round(recovery["rebuild_ms"] + recovery["retry_ms"], 3)
+    assert result["exit_code"] == 0

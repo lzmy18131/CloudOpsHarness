@@ -1,7 +1,7 @@
-# AegisOps CODE AUDIT（专项整改审计）
+# CloudOps Harness CODE AUDIT（专项整改审计）
 
 > 审计时间：2026-08-16（UTC）
-> 审计对象：`D:\AegisOps`（v0.1.0，commit `951c8dd`）
+> 审计对象：`D:\CloudOps Harness`（v0.1.0，commit `951c8dd`）
 > 审计方法：逐条对照专项整改 Prompt 的 60 项要求，读取代码/测试/artifact 后给出
 > `PASS / PARTIAL / FAIL / NOT IMPLEMENTED` 与 `P0/P1/P2` 优先级。
 > 结论使用规则：**文档写什么不重要，代码 + 测试 + artifact 决定状态。**
@@ -10,7 +10,7 @@
 
 | # | Requirement | Current Implementation | Status | Evidence | Problem | Required Change | Priority |
 |---|---|---|---|---|---|---|---|
-| 1 | 不是聊天/套壳 Multi-Agent | LangGraph 13 步故障链 + 4 个专业 SubAgent + HITL + sandbox | PASS | `src/aegisops/agents/graph.py`, `nodes.py`, integration tests | 无 | - | - |
+| 1 | 不是聊天/套壳 Multi-Agent | LangGraph 13 步故障链 + 4 个专业 SubAgent + HITL + sandbox | PASS | `src/cloudops_harness/agents/graph.py`, `nodes.py`, integration tests | 无 | - | - |
 | 2 | 无采购/ERP/供应商残留 | 全仓检索无业务残留（mapping 文档仅为对照说明） | PASS | grep 结果；`docs/PDF_TO_AIOPS_MAPPING.md` 仅作对照 | 无 | - | - |
 | 3 | 微服务环境完整 + MockOpsProvider | 6 服务 catalog + topology + metrics/logs/deployments/config/history | PASS | `fixtures/*.json`, `providers/mock.py` | 无 | - | - |
 | 4 | Provider Dependency Inversion | `OpsProvider` ABC；`MCPToolAdapter` 是默认实现 | PASS | `providers/protocol.py` | 无 | - | - |
@@ -19,8 +19,8 @@
 
 | # | Requirement | Current | Status | Evidence | Problem | Required Change | Priority |
 |---|---|---|---|---|---|---|---|
-| 5 | 10 类故障 + ground truth 字段 | 10 类 × 8 变体 + 20 级联 = 100 条 | PASS | `fixtures/incidents/scenarios.json`, `scenario_builder.py` | 无 | - | - |
-| 6 | ≥60 最好 100+ | 100 条 | PASS | 同上 | 无 | - | - |
+| 5 | 10 类故障 + ground truth 字段 | 10 类 × 11 变体 = 110 条 | PASS | `fixtures/incidents/scenarios.json`, `scenario_builder.py` | 无 | - | - |
+| 6 | ≥60 最好 100+ | 110 条 | PASS | 同上 | 无 | - | - |
 | 7 | easy / dependency-chain / ambiguous 覆盖 | 缺失这 3 个显式 bucket（single_source 接近 easy，但无显式分类） | FAIL | `scenario_builder.py` 的 `VARIANTS` | 评测 bucket 不完整，面试会被追问“难度分层” | 增加 `easy`、`dependency_chain`、`ambiguous` 变体并重新生成 dataset（110 条） | P0 |
 | 8 | machine-readable ground truth | 每场景含 root_cause/relevant_*/expected_tools/dangerous_action | PASS | dataset 不变量测试 | 无 | - | - |
 

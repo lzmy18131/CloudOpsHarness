@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from aegisops.agents.context import (
+from cloudops_harness.agents.context import (
     ContextCompressor,
     assemble_main_messages,
     compress_main_context,
     evidence_block,
 )
-from aegisops.agents.planner import PLAN_TEMPLATE, build_default_plan
-from aegisops.llm.models import LLMMessage
+from cloudops_harness.agents.planner import PLAN_TEMPLATE, build_default_plan
+from cloudops_harness.llm.models import LLMMessage
 
 
 def test_default_plan_has_thirteen_steps() -> None:

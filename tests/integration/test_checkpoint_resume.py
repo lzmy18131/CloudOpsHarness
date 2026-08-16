@@ -8,15 +8,15 @@ import pytest
 from langgraph.types import Command
 from tests.integration.test_main_agent import make_scenario
 
-from aegisops.agents.checkpoint import open_checkpointer
-from aegisops.agents.runtime import AegisRuntime
-from aegisops.config.settings import Settings
+from cloudops_harness.agents.checkpoint import open_checkpointer
+from cloudops_harness.agents.runtime import CloudOpsRuntime
+from cloudops_harness.config.settings import Settings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture()
-def runtime(tmp_path) -> AegisRuntime:
+def runtime(tmp_path) -> CloudOpsRuntime:
     settings = Settings(
         _env_file=None,
         environment="test",
@@ -26,7 +26,7 @@ def runtime(tmp_path) -> AegisRuntime:
         checkpoint_backend="sqlite",
         sandbox_backend="local",
     )
-    runtime = AegisRuntime(settings)
+    runtime = CloudOpsRuntime(settings)
     scenario = make_scenario()
     runtime.scenario_index = {scenario["incident_id"]: scenario}
     return runtime
@@ -49,7 +49,7 @@ async def test_resume_after_process_restart(runtime) -> None:
     plan_before = [(s["id"], s["status"]) for s in first["plan"]]
     calls_before = {
         tool: count
-        for tool, count in runtime.registry.call_counts.items()
+        for tool, count in runtime.registry.global_telemetry.items()
         if tool in {"query_logs", "get_recent_deployments", "get_config_diff"}
     }
     await handle1.aclose()
@@ -69,7 +69,7 @@ async def test_resume_after_process_restart(runtime) -> None:
     for step_id, status in plan_before[:8]:
         assert (step_id, status) in plan_after
     for tool, count in calls_before.items():
-        assert runtime.registry.call_counts.get(tool, 0) == count, (
-            f"{tool} re-executed after resume (was {count}, now {runtime.registry.call_counts.get(tool, 0)})"
+        assert runtime.registry.global_telemetry.get(tool, 0) == count, (
+            f"{tool} re-executed after resume (was {count}, now {runtime.registry.global_telemetry.get(tool, 0)})"
         )
     await handle2.aclose()

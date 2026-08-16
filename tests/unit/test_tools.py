@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from aegisops.common.circuit_breaker import CircuitBreaker, CircuitOpenError
-from aegisops.config.settings import Settings
-from aegisops.providers.mock import MockOpsProvider
-from aegisops.tools.registry import ToolApprovalRequiredError, ToolRegistry
-from aegisops.tools.risk import RiskLevel, RiskPolicy
+from cloudops_harness.common.circuit_breaker import CircuitBreaker, CircuitOpenError
+from cloudops_harness.config.settings import Settings
+from cloudops_harness.providers.mock import MockOpsProvider
+from cloudops_harness.tools.registry import ToolApprovalRequiredError, ToolRegistry
+from cloudops_harness.tools.risk import RiskLevel, RiskPolicy
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -115,7 +115,7 @@ async def test_tool_registry_breaker_degrades_gracefully() -> None:
 
 
 def test_pii_redaction_replaces_common_shapes() -> None:
-    from aegisops.tools.pii import redact_pii
+    from cloudops_harness.tools.pii import redact_pii
 
     text = "contact alice@example.com or +86 138-0013-8000 with key sk-abcdef1234567890"
     out = redact_pii(text)
@@ -170,3 +170,82 @@ async def test_circuit_breaker_records_transitions() -> None:
 
 async def _ok():
     return True
+
+
+def test_tool_budget_is_run_scoped_not_process_scoped() -> None:
+    from cloudops_harness.tools.budget import ToolCallBudget
+
+    run_a = ToolCallBudget(run_id="run-a", max_calls=120)
+    for _ in range(120):
+        assert run_a.record("query_metrics") is True
+    assert run_a.record("query_metrics") is False and run_a.exhausted is True
+
+    run_b = ToolCallBudget(run_id="run-b", max_calls=120)
+    assert run_b.calls == 0 and run_b.exhausted is False
+    assert run_b.record("query_logs") is True
+
+
+@pytest.mark.asyncio
+async def test_tool_budget_is_isolated_across_concurrent_runs() -> None:
+    import asyncio
+
+    from cloudops_harness.tools.budget import get_tool_budget, start_tool_budget
+
+    async def run(name: str, calls: int) -> int:
+        budget = start_tool_budget(f"run-{name}", max_calls=120)
+        for _ in range(calls):
+            budget.record("query_metrics")
+        return get_tool_budget().calls
+
+    results = await asyncio.gather(run("a", 80), run("b", 70))
+    assert results == [80, 70]
+    assert 80 + 70 > 120  # the shared old counter would have failed this
+
+
+@pytest.mark.asyncio
+async def test_registry_gracefully_stops_single_run_overflow(registry) -> None:
+    from cloudops_harness.tools.budget import start_tool_budget
+
+    start_tool_budget("overflow-run", max_calls=2)
+    args = {
+        "service": "payment-service",
+        "metric": "cpu_usage",
+        "start": "2026-01-01T00:00:00Z",
+        "end": "2026-01-01T01:00:00Z",
+    }
+    assert (await registry.call("query_metrics", args)).ok is True
+    assert (await registry.call("query_metrics", args)).ok is True
+    third = await registry.call("query_metrics", args)
+    assert third.ok is False
+    assert "tool call limit exceeded for run overflow-run" in third.error
+    # Telemetry keeps counting independently of the run budget.
+    assert registry.global_telemetry["query_metrics"] == 3
+
+
+@pytest.mark.asyncio
+async def test_dry_run_action_is_registered_and_returns_valid_payload(registry) -> None:
+    l2 = await registry.call(
+        "dry_run_action",
+        {
+            "action": "restart_service",
+            "service": "payment-service",
+            "environment": "prod",
+            "params": {"reason": "x"},
+        },
+    )
+    assert l2.ok is True
+    assert l2.data["valid"] is True and l2.data["risk_level"] == 2
+    assert l2.data["planned_change"] and l2.data["rollback_method"]
+
+    l3 = await registry.call(
+        "dry_run_action",
+        {
+            "action": "rollback_release",
+            "service": "payment-service",
+            "environment": "prod",
+            "params": {"to_version": "v2.3.0", "reason": "x"},
+        },
+    )
+    assert l3.ok is True
+    assert l3.data["valid"] is True and l3.data["risk_level"] == 3
+    assert l3.data["before_state"]["release"] == "v2.3.0"

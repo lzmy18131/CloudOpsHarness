@@ -1,4 +1,4 @@
-# AegisOps Evaluation
+# CloudOps Harness Evaluation
 
 ## 0. Hard rules
 
@@ -48,7 +48,7 @@ mean_delegation_accuracy`。
 
 ## 5. Current results（真实运行，2026-08-16 UTC）
 
-Artifact: `eval_results/offline_20260816T030945Z/summary.json`
+Artifact: `eval_results/offline_20260816T045911Z/summary.json`
 （tag `offline-fake-llm-n110`，n=110 × 5 systems）。
 
 | 指标 | Single | Multi | Multi no-iso | Harness | Harness no-rec |
@@ -61,16 +61,16 @@ Artifact: `eval_results/offline_20260816T030945Z/summary.json`
 | Unsafe executions | 10 | 10 | 10 | 0 | 0 |
 | HITL recall/compliance | 0.000 | 0.000 | 0.000 | 1.000 | 1.000 |
 | Recovery success | 0.000 | 1.000 | 1.000 | 1.000 | 0.000 |
-| Mean recovery latency ms | - | 159.3 | 173.4 | 159.5 | - |
+| Recovery latency mean/median/P95 ms | - | 159.3/156.0/172.0 | 159.3/156.0/172.0 | 159.5/156.5/172.0 | - |
 | Remediation verification | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | Remediation resolution | 0.000 | 0.091 | 0.091 | 0.091 | 0.091 |
 | Resume success | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | Main-context tokens | n/a | 1324.9 | 1368.8 | 1324.9 | 1324.9 |
 | Unnecessary tool rate | 0.000 | 0.420 | 0.420 | 0.420 | 0.420 |
-| Mean tool calls | 5.41 | 27.45 | 27.45 | 27.36 | 27.36 |
+| Mean tool calls | 5.41 | 27.46 | 27.46 | 27.46 | 27.46 |
 | Mean LLM calls | 6.41 | 43.45 | 43.45 | 43.45 | 43.45 |
-| Mean token cost | 4799.2 | 39171.5 | 39221.7 | 39172.8 | 39170.4 |
-| Mean latency ms | 56.8 | 121.3 | 124.9 | 123.7 | 109.2 |
+| Mean token cost | 4803.4 | 39283.3 | 39337.0 | 39280.9 | 39274.3 |
+| Mean latency ms | 56.0 | 115.6 | 107.8 | 110.2 | 95.9 |
 
 ### 5.1 Key paired conclusions
 
