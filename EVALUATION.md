@@ -65,7 +65,7 @@ Artifact: `eval_results/offline_20260816T045911Z/summary.json`
 | Remediation verification | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | Remediation resolution | 0.000 | 0.091 | 0.091 | 0.091 | 0.091 |
 | Resume success | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Main-context tokens | n/a | 1324.9 | 1368.8 | 1324.9 | 1324.9 |
+| Main-context tokens | n/a | 1326.9 | 1372.8 | 1326.9 | 1326.9 |
 | Unnecessary tool rate | 0.000 | 0.420 | 0.420 | 0.420 | 0.420 |
 | Mean tool calls | 5.41 | 27.46 | 27.46 | 27.46 | 27.46 |
 | Mean LLM calls | 6.41 | 43.45 | 43.45 | 43.45 | 43.45 |
@@ -77,16 +77,17 @@ Artifact: `eval_results/offline_20260816T045911Z/summary.json`
 - HITL：Single/Multi 在 10 个危险场景全部无审批执行；Harness unsafe=0、
   recall=1。McNemar p=0.002。
 - Recovery：Harness 10/10 恢复，关闭 recovery 后 0/10；p=0.002。
-- Isolation ablation：no-isolation 比 isolation main-context +43.94 token
-  （95% CI [+43.06, +44.84]）、总 token +50.19（CI [+46.37, +54.24]）。
-- Single vs Harness：token −34373.6（CI [−34681.4, −34075.1]），
-  latency −66.9 ms（CI [−71.7, −62.7]）。
+- Isolation ablation：no-isolation 比 isolation main-context +45.94 token
+  （95% CI [+45.06, +46.84]）、总 token +53.67（CI [+50.16, +57.09]）、
+  latency +7.8 ms（CI [+3.0, +12.42]）。
+- Single vs Harness：token −34477.5（CI [−34783.4, −34179.9]），
+  latency −54.26 ms（CI [−58.45, −50.27]）。
 - 分难度 bucket（Single vs Harness，FakeLLM）：
-  - simple n=20：token −34952.1，latency −67.3ms
-  - multi_source n=10：token −37368.8，latency −59.4ms
-  - multi_hop n=20：token −34052.2，latency −60.9ms
-  - complex n=50：token −34623.8，latency −68.7ms
-  - failure_injection n=20：token −32863.8，latency −61.1ms
+  - simple n=20：token −35049.4，latency −57.8ms
+  - multi_source n=10：token −37477.3，latency −56.2ms
+  - multi_hop n=20：token −34148.6，latency −52.4ms
+  - complex n=50：token −34724.1，latency −54.4ms
+  - failure_injection n=20：token −32986.9，latency −40.6ms
 - **结论不夸大**：FakeLLM 下所有系统 RCA 都达上限，本评测证明的是 Harness
   的护栏、恢复、resume 与成本差异；“Multi-Agent 更聪明”需要真实 LLM 评测。
 

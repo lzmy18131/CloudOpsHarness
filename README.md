@@ -40,7 +40,7 @@ FastAPI :8090
 无需任何 API Key（默认 FakeLLM 离线确定性驱动）：
 
 ```bash
-git clone <repo> && cd CloudOps Harness
+git clone https://github.com/lzmy18131/CloudOpsHarness.git && cd CloudOpsHarness
 python -m venv .venv
 # Windows: .venv\Scripts\activate   /  Linux: source .venv/bin/activate
 pip install -e ".[dev]"
@@ -61,7 +61,7 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 
 ## 4. Harness Design
 
-- **Planning**：`PlanStep(pending/in_progress/completed/failed)` 持久化在 graph state，SSE `plan` 事件实时推送。
+- **Planning**：`PlanStep(pending/in_progress/completed/failed/skipped)` 持久化在 graph state，SSE `plan` 事件实时推送。
 - **SubAgent 声明式**：`src/cloudops_harness/agents/subagents/configs/*.yaml`。新增 Agent = 新增一个 YAML；`load_subagent_configs / resolve_subagent_tools / validate_subagent_config`。
 - **Context Engineering 四层**：Input（policy+偏好+skills frontmatter）→ Isolation（transcript 永不进主上下文）→ Compression（阈值 offload+摘要）→ Long-term Memory（用户偏好；CMDB 事实一律走工具）。
 - **Memory vs Database facts**：`PreferenceStore` 只存偏好；owner/version/dependency/restart policy 从 Service Catalog 工具查询。
@@ -81,7 +81,7 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 ## 6. Sandbox
 
 `SandboxBackend` Protocol 下实现：
-- `DockerSandboxBackend`：`--network none --cap-drop ALL --no-new-privileges --read-only --tmpfs /tmp --memory 256m --cpus 0.5 --pids-limit 64`，是真正的安全边界。
+- `DockerSandboxBackend`：`--network none --cap-drop ALL --no-new-privileges --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m --tmpfs /workspace:rw,nosuid,nodev,size=256m --memory 256m --cpus 0.5 --pids-limit 64`，提供**项目级执行隔离边界**（不是 hardened microVM sandbox）。
 - `LocalSandboxBackend`：无 Docker 开发机兜底（**不是强隔离边界**，文档已明确）。
 
 故障恢复路径：execute 失败 → circuit breaker 记录 → `manager.rebuild()` → `proxy.replace_backend()` → 重试成功。`tests/failure/test_sandbox_recovery.py` 自动化验证。
@@ -155,7 +155,7 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 | Dynamic skill 安全门 | `SkillInstaller` | `test_skills_memory.py`（7 项安全测试） |
 | Dry run before HITL | `dry_run_action` L0 + `ActionRequest.dry_run` | `test_tools.py`, executor 代码 |
 | Remediation 后 verify + resolved | `build_verify_node` before/after + resolved | `test_main_agent.py`（最终状态） |
-| Evaluation 数字可复算 | raw per-run 明细 | `eval_results/offline_20260816T030945Z/summary.json` |
+| Evaluation 数字可复算 | raw per-run 明细 | `eval_results/offline_20260816T045911Z/summary.json` |
 
 ## 10. Quick Start
 
@@ -178,6 +178,6 @@ docker compose up -d mongo   # 然后 CLOUDOPS_STORAGE_BACKEND=mongo
 - DockerSandboxBackend provides project-level execution isolation (read-only root, restricted writable workspace, resource controls). It is not a hardened multi-tenant microVM sandbox.
 - LocalSandboxBackend 仅用于开发演示；生产/不可信输入必须 `CLOUDOPS_SANDBOX_BACKEND=docker`。
 - FakeLLM 评测度量的是 **harness 正确性**，不是语言模型能力；真实 LLM 结果用 `scripts/run_real_eval.py` 单独生成。
-- 离线 FakeLLM 100 场景下，Single/Multi/Harness 的 RCA 正确率都接近上限（确定性控制器知道场景），对比的有效信息集中在 **unsafe/HITL 合规、恢复能力与 token/latency 成本**。见 EVALUATION.md 的诚实说明。
+- 离线 FakeLLM 110 场景下，Single/Multi/Harness 的 RCA 正确率都接近上限（确定性控制器知道场景），对比的有效信息集中在 **unsafe/HITL 合规、恢复能力与 token/latency 成本**。见 EVALUATION.md 的诚实说明。
 - MCP 默认 in-process transport；跨进程 stdio：`python -m cloudops_harness.mcp.server`。
 - 无向量数据库 / GraphRAG（刻意不做，聚焦 Harness）。

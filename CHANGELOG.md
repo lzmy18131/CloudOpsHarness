@@ -36,9 +36,6 @@
 ## v0.1.0 — 2026-08-15
 
 ### Added
-## v0.1.0 — 2026-08-15
-
-### Added
 - Harness-Engineered LangGraph incident-response graph: planning todo, four
   declarative subagents, RCA synthesis, HITL executor, verification, report.
 - MockOpsProvider with 10 fault types, deterministic metrics/logs/deployments/

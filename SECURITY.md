@@ -45,10 +45,12 @@ CloudOps Harness lets LLMs call operations tools and execute diagnostic code. Th
 
 ## 4. Sandbox
 
-**DockerSandboxBackend (the security boundary):**
+**DockerSandboxBackend (project-level execution isolation boundary):**
 - `--network none`: no data exfiltration, no internal probing
 - `--cap-drop ALL`, `--security-opt no-new-privileges`
-- `--read-only` rootfs + `--tmpfs /tmp:rw,noexec,nosuid,size=64m`
+- `--read-only` rootfs
+- `--tmpfs /tmp:rw,noexec,nosuid,size=64m`
+- `--tmpfs /workspace:rw,nosuid,nodev,size=256m`（writable workspace）
 - `-m 256m --cpus 0.5 --pids-limit 64`
 - no host volume mounts; uploads/downloads via `docker cp` to `/workspace`
 
