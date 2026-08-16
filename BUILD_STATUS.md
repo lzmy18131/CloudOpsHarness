@@ -18,7 +18,7 @@
 
 ## 最终状态
 
-- Tests：**124 passed, 1 skipped**（skipped = real-Docker smoke，本机 daemon 不可用）
+- Tests：**collected 125 · passed 124 · failed 0 · skipped 1**（skipped = real-Docker smoke，本机 daemon 不可用）
 - ruff check ✅ · ruff format --check ✅
 - Evaluation：`eval_results/offline_20260816T045911Z/summary.json`（n=110 × 5 systems）
 - Demos：A/B/C/D PASS

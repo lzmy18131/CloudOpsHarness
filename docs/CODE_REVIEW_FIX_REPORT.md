@@ -76,7 +76,7 @@
 
 ## 9. Tests
 
-- total: **124**
+- collected: **125**
 - passed: **124**
 - failed: **0**
 - skipped: **1**（real-Docker smoke，本机 daemon/image 不可用）

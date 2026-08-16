@@ -1,10 +1,10 @@
 # CloudOps Harness Build Report (v0.2.1 Final Resume Release)
 
 - 项目根目录：本地仓库（GitHub: lzmy18131/CloudOpsHarness）
-- Python 3.11.15 · venv `D:\AegisOps\.venv`
+- Python 3.11.15（项目 venv）
 - 依赖全部固定（langgraph 1.2.11 / fastapi 0.141.1 / pydantic 2.13.4 / fastmcp 3.4.7 / openai 2.54.0 …）
 - `ruff check src tests scripts` ✅ · `ruff format --check` ✅
-- Tests：**124 passed, 1 skipped**（skipped = real-Docker smoke，本机 daemon 不可用）
+- Tests：**collected 125 · passed 124 · failed 0 · skipped 1**（skipped = real-Docker smoke，本机 daemon 不可用）
 
 ## v0.2.1 Blockers Fixed
 
