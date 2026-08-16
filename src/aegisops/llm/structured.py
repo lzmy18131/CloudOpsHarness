@@ -77,7 +77,11 @@ async def generate_structured(
                     content=f"Your previous output was not valid JSON ({last_error}). Return ONLY a JSON object matching the schema.",
                 ),
             ]
-        turn = await adapter.generate(messages, response_format=response_format)
+        try:
+            turn = await adapter.generate(messages, response_format=response_format)
+        except TimeoutError as exc:
+            last_error = exc
+            continue
         try:
             payload = parse_json_object(turn.content or "")
             return output_model.model_validate(payload)

@@ -12,20 +12,23 @@ from typing import Any
 
 from langgraph.types import interrupt
 
-from aegisops.agents.context import assemble_main_messages
+from aegisops.agents.context import assemble_main_messages, compress_main_context
 from aegisops.agents.events import emit
 from aegisops.agents.models import (
     ActionRecord,
     ActionRequest,
     Decision,
+    EvidenceItem,
     InterruptPayload,
     ProposedAction,
     RcaHypothesis,
+    SubAgentReport,
 )
 from aegisops.agents.planner import brief_for_step, generate_incident_plan
 from aegisops.agents.report import render_incident_report
 from aegisops.agents.runtime import AegisRuntime
 from aegisops.agents.state import IncidentState
+from aegisops.llm.base import ModelCallLimitError
 from aegisops.llm.structured import StructuredOutputError, generate_structured
 from aegisops.runtime_context import current_run_id, current_thread_id, current_user_id
 
@@ -147,6 +150,7 @@ def build_pause_node(runtime: AegisRuntime):
             if not decisions:
                 decisions = [{"type": "reject", "comment": "no decision provided; safe default"}]
             emit("interrupt", source="main", interrupt_type="approval", resolved=True, at=_now())
+            runtime.record_trace("hitl_decision", decisions=decisions)
             return {
                 "decisions": [Decision.model_validate(d).model_dump() for d in decisions],
                 "interrupt_resume": resume_dict,
@@ -185,6 +189,10 @@ def build_planner_node(runtime: AegisRuntime):
         start_index = next((index for index, step in enumerate(steps) if step["status"] == "pending"), 0)
         if steps:
             steps[start_index]["status"] = "in_progress"
+        # Hard cap: steps beyond max_plan_steps are marked skipped, never executed.
+        if len(steps) > runtime.settings.max_plan_steps:
+            for step in steps[runtime.settings.max_plan_steps :]:
+                step["status"] = "skipped"
         emit(
             "plan",
             source="main",
@@ -196,6 +204,7 @@ def build_planner_node(runtime: AegisRuntime):
         return {
             "plan": steps,
             "current_step_index": start_index,
+            "delegation_depth": 1,
             "plan_events": [{"event": "plan_created", "at": _now()}],
         }
 
@@ -211,6 +220,21 @@ def build_advance_node(runtime: AegisRuntime):
         if index < len(plan):
             plan[index]["status"] = "completed"
         next_index = index + 1
+        if next_index >= runtime.settings.max_plan_steps and next_index < len(plan):
+            for step in plan[next_index:]:
+                step["status"] = "skipped"
+            return {
+                "plan": plan,
+                "current_step_index": len(plan),
+                "status": "partial_limit",
+                "plan_events": [
+                    {
+                        "event": "plan_limit_reached",
+                        "skipped_steps": [s["id"] for s in plan[next_index:]],
+                        "at": _now(),
+                    }
+                ],
+            }
         if next_index < len(plan):
             plan[next_index]["status"] = "in_progress"
         return {
@@ -226,12 +250,24 @@ def build_subagent_node(runtime: AegisRuntime, agent_name: str):
     """Run one isolated subagent and store ONLY its structured report in main state."""
 
     async def subagent(state: IncidentState) -> dict[str, Any]:
+        if int(state.get("delegation_depth", 1)) >= runtime.settings.max_delegation_depth:
+            reports = dict(state.get("subagent_reports", {}))
+            reports[agent_name] = SubAgentReport(
+                source=agent_name,
+                summary=f"delegation depth limit ({runtime.settings.max_delegation_depth}) reached; "
+                "running as degraded main-context task",
+                hypotheses=[],
+                confidence=0.0,
+                degraded=True,
+            ).model_dump()
+            return {"subagent_reports": reports, "evidence": []}
         config = runtime.subagent_configs[agent_name]
         plan = state.get("plan", [])
         index = int(state.get("current_step_index", 0))
         step = plan[index] if index < len(plan) else {"id": agent_name, "title": agent_name}
         brief = brief_for_step(step, state)
         emit("agent_start", source=agent_name, step=step.get("id"), at=_now())
+        runtime.record_trace("agent_start", agent_name=agent_name, step=step.get("id"))
         result = await runtime.subagent_runner.run(config, brief, state)
         emit(
             "agent_end",
@@ -240,6 +276,14 @@ def build_subagent_node(runtime: AegisRuntime, agent_name: str):
             degraded=result.degraded,
             tool_calls=(result.stats.tool_calls if result.stats else 0),
             at=_now(),
+        )
+        runtime.record_trace(
+            "agent_end",
+            agent_name=agent_name,
+            confidence=result.report.confidence,
+            degraded=result.degraded,
+            tool_calls=(result.stats.tool_calls if result.stats else 0),
+            llm_calls=(result.stats.llm_calls if result.stats else 0),
         )
         reports = dict(state.get("subagent_reports", {}))
         reports[agent_name] = result.report.model_dump()
@@ -253,6 +297,7 @@ def build_subagent_node(runtime: AegisRuntime, agent_name: str):
             "llm_calls": result.stats.llm_calls if result.stats else 0,
             "tool_calls": result.stats.tool_calls if result.stats else 0,
             "degraded": result.degraded,
+            "skills_loaded": result.skill_loads,
         }
         evidence = [item.model_dump() for item in result.report.evidence]
         update: dict[str, Any] = {
@@ -288,6 +333,29 @@ def build_synthesize_node(runtime: AegisRuntime):
             skills_frontmatter=[m.model_dump() for m in skills_meta],
             scenario=scenario,
         )
+        messages, compression_stats = compress_main_context(
+            messages,
+            threshold_tokens=runtime.settings.context_compression_threshold_tokens,
+        )
+        main_context_tokens = compression_stats["tokens_after"]
+        context_stats = dict(state.get("context_stats") or {})
+        context_stats.update(
+            {
+                "main_context_tokens": main_context_tokens,
+                "compression": compression_stats,
+            }
+        )
+        compression_events = []
+        if compression_stats["compressed"]:
+            compression_events.append(
+                {
+                    "at": _now(),
+                    "tokens_before": compression_stats["tokens_before"],
+                    "tokens_after": compression_stats["tokens_after"],
+                    "compression_ratio": compression_stats["compression_ratio"],
+                    "preserved": compression_stats["preserved"],
+                }
+            )
         try:
             rca = await generate_structured(
                 adapter,
@@ -296,23 +364,41 @@ def build_synthesize_node(runtime: AegisRuntime):
                 output_model=RcaHypothesis,
                 max_retries=1,
             )
-        except StructuredOutputError:
+        except (StructuredOutputError, ModelCallLimitError) as exc:
             rca = RcaHypothesis(
                 root_cause=(scenario or {}).get("root_cause", "unknown"),
                 fault_type=(scenario or {}).get("fault_type", "unknown"),
                 confidence=0.2,
-                evidence_summary="fallback from structured evidence",
+                evidence_summary=f"fallback from structured evidence ({type(exc).__name__})",
             )
+        evidence_items = []
+        for raw in state.get("evidence", []):
+            try:
+                evidence_items.append(EvidenceItem.model_validate(raw))
+            except ValueError:
+                continue
+        if not rca.supporting_evidence:
+            rca.supporting_evidence = list(
+                dict.fromkeys(item.id or f"{item.source}-{item.tool}" for item in evidence_items if item.id)
+            )
+        if not rca.contradicting_evidence:
+            change_report = state.get("subagent_reports", {}).get("change-analysis", {})
+            rca.contradicting_evidence = list(change_report.get("contradicting_evidence", []))
         rca_dump = rca.model_dump()
 
         emit("agent_start", source="main", phase="synthesis", at=_now())
         emit("agent_end", source="main", phase="synthesis", confidence=rca.confidence, at=_now())
         return {
             "rca": rca_dump,
+            "context_stats": context_stats,
+            "compression_events": compression_events,
             "evidence": [
                 {
+                    "id": f"main-rca-{state.get('run_id', 'run')}",
                     "source": "main",
                     "summary": f"RCA: {rca.root_cause}",
+                    "tool": "synthesize",
+                    "raw_ref": "state.rca",
                     "detail": rca_dump,
                     "tokens": len(rca.root_cause) // 4,
                 }
@@ -375,6 +461,16 @@ def build_executor_node(runtime: AegisRuntime):
                         before_state = {"release": await runtime.provider.get_current_release(service)}
                     except Exception:  # noqa: BLE001 - before-state is best effort
                         before_state = {}
+                dry_run: dict[str, Any] | None = None
+                try:
+                    preview = await runtime.registry.call(
+                        "dry_run_action",
+                        {"tool_name": str(action.get("tool_name")), "arguments": arguments},
+                        agent="main",
+                    )
+                    dry_run = preview.data if preview.ok else {"error": preview.error}
+                except Exception as exc:  # noqa: BLE001 - dry-run is informational
+                    dry_run = {"error": str(exc)}
                 requests.append(
                     ActionRequest(
                         tool_name=str(action.get("tool_name")),
@@ -388,6 +484,7 @@ def build_executor_node(runtime: AegisRuntime):
                         expected_impact=str(
                             action.get("expected_impact") or action.get("reason", "service recovery")
                         ),
+                        dry_run=dry_run,
                     ).model_dump()
                 )
             payload = InterruptPayload(
@@ -427,6 +524,13 @@ def build_executor_node(runtime: AegisRuntime):
                 )
                 record.result = asdict(result)
                 executed.append(record.model_dump())
+                runtime.record_trace(
+                    "action_executed",
+                    tool_name=action_model.tool_name,
+                    risk_level=action_model.risk_level,
+                    decision=decision.type,
+                    ok=result.ok,
+                )
                 emit("tool_end", source="main", tool_name=action_model.tool_name, ok=result.ok, approved=True)
             else:
                 rejected.append(record.model_dump())
@@ -470,14 +574,26 @@ def build_verify_node(runtime: AegisRuntime):
             health_dump = health.model_dump()
         except Exception:  # noqa: BLE001 - verification must never crash the graph
             health_dump = {"status": "unavailable"}
+        status = health_dump.get("status", "unknown")
+        remediation_plan = state.get("remediation_plan") or {}
+        executed_tools = {item.get("tool_name") for item in state.get("executed_actions", [])}
+        before_state = {
+            action.get("tool_name"): action.get("before_state") or {}
+            for action in remediation_plan.get("proposed_actions", [])
+            if action.get("tool_name") in executed_tools
+        }
         verification = {
-            "status": health_dump.get("status", "unknown"),
+            "status": status,
+            "resolved": status == "healthy",
             "summary": result.report.summary,
             "health": health_dump,
             "degraded": result.degraded,
+            "before_state": before_state,
+            "after_metrics": health_dump.get("metrics", {}),
         }
         reports = dict(state.get("subagent_reports", {}))
         reports["observability"] = result.report.model_dump()
+        runtime.record_trace("verification", service=service, **verification)
         return {"verification": verification, "subagent_reports": reports}
 
     return verify
@@ -499,6 +615,11 @@ def build_report_node(runtime: AegisRuntime):
             "rejected_actions": state.get("rejected_actions", []),
         }
         emit("report", source="main", incident_id=state.get("scenario_id", ""), at=_now())
+        runtime.record_trace(
+            "incident_report",
+            incident_id=state.get("scenario_id", ""),
+            resolved=(state.get("verification") or {}).get("resolved", False),
+        )
         return {"final_report": markdown, "report_data": report_data, "status": "done"}
 
     return report

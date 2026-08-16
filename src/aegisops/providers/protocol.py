@@ -8,11 +8,13 @@ GitHub / Grafana / cloud APIs) implement this protocol; the MVP ships
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from aegisops.providers.models import (
     ActionResult,
     ConfigDiffResult,
     DeploymentRecord,
+    DryRunResult,
     HistoricalIncident,
     IncidentTicket,
     LogsResult,
@@ -84,6 +86,9 @@ class OpsProvider(ABC):
     async def verify_service_health(self, service: str) -> ServiceHealth: ...
 
     # ---- write / action (Risk Level 1-3) -------------------------------
+    @abstractmethod
+    async def dry_run_action(self, tool_name: str, arguments: dict[str, Any]) -> DryRunResult: ...
+
     @abstractmethod
     async def create_incident_ticket(
         self, service: str, title: str, severity: str, description: str

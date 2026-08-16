@@ -28,6 +28,7 @@ class IncidentState(TypedDict, total=False):
 
     plan: list[dict[str, Any]]
     current_step_index: int
+    delegation_depth: int
     plan_events: Annotated[list[dict[str, Any]], operator.add]
 
     evidence: Annotated[list[dict[str, Any]], operator.add]

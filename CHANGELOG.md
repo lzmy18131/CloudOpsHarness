@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.2.0 — 2026-08-16（专项整改）
+
+### Added
+- Unified SSE event envelope (run_id/thread_id/timestamp/sequence) + UI dedup.
+- Context compression wired into synthesize with quantified stats.
+- Hard limits: model-call budget, max_plan_steps (skipped + partial report), max_delegation_depth.
+- dry_run_action L0 tool + dry-run in every HITL approval request.
+- Evidence traceability (id/tool/timestamp/service/raw_ref) and RCA supporting/contradicting evidence.
+- Change-agent temporal_correlation/correlation/causal_confidence fields.
+- Circuit breaker transition log.
+- Verification resolved flag + before/after state.
+- PII redaction middleware + tool-boundary redaction.
+- Richer trace timeline (risk level, agent, HITL decision, action, verification, report).
+- Dataset expanded to 110 scenarios (easy/dependency_chain/ambiguous buckets).
+- New evaluation metrics + bucket comparisons + recovery latency.
+- Security tests (prompt injection / risk bypass / memory isolation).
+- Demo D: sandbox crash + process restart resume.
+
+### Fixed
+- Resume test now proves pre-interrupt tool calls are not re-executed.
+- PII phone regex no longer corrupts numeric tool output.
+
+## v0.1.0 — 2026-08-15
+
+### Added
 ## v0.1.0 — 2026-08-15
 
 ### Added

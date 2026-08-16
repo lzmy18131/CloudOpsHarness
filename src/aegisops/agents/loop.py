@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from aegisops.llm.base import ModelAdapter
+from aegisops.llm.base import ModelAdapter, ModelCallLimitError
 from aegisops.llm.models import LLMMessage, ToolCall
 from aegisops.tools.registry import ToolApprovalRequiredError, ToolRegistry, ToolResult
 
@@ -74,7 +74,30 @@ class AgentLoop:
             tools = self.registry.openai_schemas(names=tool_names, read_only=read_only)
 
         for _ in range(self.max_iterations):
-            turn = await self.adapter.generate(working, tools=tools or None)
+            try:
+                turn = await self.adapter.generate(working, tools=tools or None)
+            except ModelCallLimitError as exc:
+                stats.degraded = True
+                working.append(
+                    LLMMessage(
+                        role="assistant",
+                        content=f"[{self.agent_name}] model-call budget exhausted: {exc}. Returning partial evidence collected so far.",
+                    )
+                )
+                return LoopResult(
+                    messages=working, final_content=working[-1].content, stats=stats, finished=False
+                )
+            except TimeoutError as exc:
+                stats.degraded = True
+                working.append(
+                    LLMMessage(
+                        role="assistant",
+                        content=f"[{self.agent_name}] LLM call timed out: {exc}. Returning partial evidence collected so far.",
+                    )
+                )
+                return LoopResult(
+                    messages=working, final_content=working[-1].content, stats=stats, finished=False
+                )
             stats.llm_calls += 1
             stats.prompt_tokens += turn.usage.prompt_tokens
             stats.completion_tokens += turn.usage.completion_tokens

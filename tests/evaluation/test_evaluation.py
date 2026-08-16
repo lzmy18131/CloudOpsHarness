@@ -18,16 +18,19 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def test_dataset_has_100_scenarios_and_all_invariants() -> None:
     scenarios = load_default_scenarios()
-    assert len(scenarios) == 100
+    assert len(scenarios) == 110
     assert validate_dataset(scenarios) == []
     stats = dataset_stats(scenarios)
     assert len(stats["fault_types"]) == 10
     assert {
+        "easy",
         "single_source",
         "multi_source",
         "multi_hop",
+        "dependency_chain",
         "dangerous_action",
         "missing_information",
+        "ambiguous",
         "tool_failure",
         "sandbox_failure",
     } <= set(stats["categories"])
@@ -80,4 +83,5 @@ async def test_small_experiment_runs_and_writes_artifacts(tmp_path) -> None:
     comparison = artifacts["comparisons"][0]
     assert comparison["pair"] == "single-agent vs harness"
     assert len(comparison["binary"]) == 3
-    assert len(comparison["continuous"]) == 4
+    assert len(comparison["continuous"]) == 7
+    assert any(b["bucket"] == "simple" for b in artifacts["bucket_comparisons"])

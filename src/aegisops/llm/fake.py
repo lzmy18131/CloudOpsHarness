@@ -384,10 +384,17 @@ class FakeLLM(ModelAdapter):
             )
             base["signals"] = [s["pattern"] for s in scenario.get("log_specs", [])]
         elif role == "change-analysis":
+            changes = scenario.get("changes", [])
             base["summary"] = (
-                f"change analysis correlated {len(scenario.get('changes', []))} recent change(s) with anomaly onset"
+                f"change analysis found {len(changes)} recent change(s) temporally correlated with "
+                "anomaly onset; causal evidence requires version-split or rollback confirmation"
             )
-            base["signals"] = [c.get("id", "change") for c in scenario.get("changes", [])]
+            base["signals"] = [c.get("id", "change") for c in changes]
+            base["temporal_correlation"] = bool(changes)
+            base["correlation"] = "deployment/config timestamp falls inside the anomaly window"
+            base["causal_confidence"] = 0.35 if changes else 0.1
+            base["supporting_evidence"] = [c.get("id", "change") for c in changes]
+            base["contradicting_evidence"] = ["no rollback confirmation / version split evidence yet"]
         elif role == "remediation":
             base["summary"] = (
                 f"remediation plan prepared; recommended action: {scenario.get('recommended_action', 'none')}"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from aegisops.config.settings import Settings
 from aegisops.llm.fake import FakeLLM, ScriptedTurn
@@ -14,7 +14,7 @@ from aegisops.llm.structured import StructuredOutputError, generate_structured, 
 
 class TinyModel(BaseModel):
     answer: str
-    confidence: float
+    confidence: float = Field(ge=0.0, le=1.0)
 
 
 @pytest.mark.asyncio
@@ -123,3 +123,62 @@ async def test_generate_structured_retries_once_on_malformed_output() -> None:
     )
     assert result.answer == "recovered"
     assert result.confidence == 0.9
+
+
+@pytest.mark.asyncio
+async def test_generate_structured_rejects_missing_field() -> None:
+    llm = FakeLLM(script=[ScriptedTurn(json_payload={"confidence": 0.9}, match="query")])
+    with pytest.raises(StructuredOutputError):
+        await generate_structured(
+            llm, [LLMMessage(role="user", content="query")], schema_name="TinyModel", output_model=TinyModel
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_structured_rejects_wrong_type_and_invalid_confidence() -> None:
+    wrong_type = FakeLLM(
+        script=[ScriptedTurn(json_payload={"answer": 123, "confidence": 0.5}, match="query")]
+    )
+    with pytest.raises(StructuredOutputError):
+        await generate_structured(
+            wrong_type,
+            [LLMMessage(role="user", content="query")],
+            schema_name="TinyModel",
+            output_model=TinyModel,
+        )
+
+    bad_confidence = FakeLLM(
+        script=[ScriptedTurn(json_payload={"answer": "x", "confidence": 1.5}, match="query")]
+    )
+    with pytest.raises(StructuredOutputError):
+        await generate_structured(
+            bad_confidence,
+            [LLMMessage(role="user", content="query")],
+            schema_name="TinyModel",
+            output_model=TinyModel,
+        )
+
+
+@pytest.mark.asyncio
+async def test_generate_structured_repairs_truncated_then_recovers() -> None:
+    llm = FakeLLM(
+        script=[
+            ScriptedTurn(content='{"answer": "broken"', match="query"),
+            ScriptedTurn(json_payload={"answer": "repaired", "confidence": 0.7}, match="previous output"),
+        ]
+    )
+    result = await generate_structured(
+        llm, [LLMMessage(role="user", content="query")], schema_name="TinyModel", output_model=TinyModel
+    )
+    assert result.answer == "repaired"
+
+
+@pytest.mark.asyncio
+async def test_generate_structured_accepts_extra_text_around_json() -> None:
+    llm = FakeLLM(
+        script=[ScriptedTurn(content='prefix {"answer": "ok", "confidence": 0.5} suffix', match="query")]
+    )
+    result = await generate_structured(
+        llm, [LLMMessage(role="user", content="query")], schema_name="TinyModel", output_model=TinyModel
+    )
+    assert result.answer == "ok"

@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from aegisops.agents.events import emit
+from aegisops.agents.events import emit, make_event, reset_sequence
 from aegisops.middleware.models import RunContext
 from aegisops.runtime_context import (
     current_run_id,
@@ -111,6 +111,7 @@ async def chat(request_body: ChatRequest, request: Request) -> dict[str, Any]:
     current_user_id.set(request_body.user_id)
     current_thread_id.set(thread_id)
     current_run_id.set(run_id)
+    _runtime(request).reset_model_budget()
 
     async def invoke():
         return await graph.ainvoke(
@@ -146,10 +147,12 @@ async def chat_stream(request_body: ChatRequest, request: Request) -> StreamingR
         ctx = RunContext(
             user_id=user_id, thread_id=thread_id, run_id=run_id, input_message=request_body.message
         )
-        yield _sse({"type": "run_start", "run_id": run_id, "thread_id": thread_id, "source": "main"})
+        reset_sequence()
+        yield _sse(make_event("run_start", run_id=run_id, thread_id=thread_id, source="main"))
         current_user_id.set(user_id)
         current_thread_id.set(thread_id)
         current_run_id.set(run_id)
+        runtime.reset_model_budget()
         stack = runtime.middleware
         token_sink.set(lambda event: emit(event.pop("type"), **event))
         try:
@@ -172,11 +175,11 @@ async def chat_stream(request_body: ChatRequest, request: Request) -> StreamingR
                         content = getattr(message_chunk, "content", "") or ""
                         if isinstance(content, str) and content:
                             yield _sse(
-                                {
-                                    "type": "token",
-                                    "content": content,
-                                    "source": _source_name(metadata.get("langgraph_node", "main")),
-                                }
+                                make_event(
+                                    "token",
+                                    content=content,
+                                    source=_source_name(metadata.get("langgraph_node", "main")),
+                                )
                             )
                     elif mode == "custom" and isinstance(payload, dict):
                         yield _sse(payload)
@@ -190,37 +193,36 @@ async def chat_stream(request_body: ChatRequest, request: Request) -> StreamingR
                 await storage.append_event(
                     thread_id, user_id, {"kind": "interrupt", "type": pending.get("type"), "payload": pending}
                 )
+                pending_payload = {key: value for key, value in pending.items() if key != "type"}
                 yield _sse(
-                    {
-                        **pending,
-                        "type": "interrupt",
-                        "interrupt_type": pending.get("type"),
-                        "thread_id": thread_id,
-                    }
+                    make_event(
+                        "interrupt",
+                        **pending_payload,
+                        interrupt_type=pending.get("type"),
+                        thread_id=thread_id,
+                    )
                 )
-                yield _sse(
-                    {"type": "done", "thread_id": thread_id, "status": "interrupted", "interrupted": True}
-                )
+                yield _sse(make_event("done", thread_id=thread_id, status="interrupted", interrupted=True))
                 return
             final_report = values.get("final_report", "")
             if final_report:
-                yield _sse({"type": "report", "content": final_report, "source": "main"})
+                yield _sse(make_event("report", content=final_report, source="main"))
             await storage.append_event(
                 thread_id,
                 user_id,
                 {"kind": "final", "content": final_report, "status": values.get("status", "done")},
             )
             yield _sse(
-                {
-                    "type": "done",
-                    "thread_id": thread_id,
-                    "status": values.get("status", "done"),
-                    "interrupted": False,
-                }
+                make_event(
+                    "done",
+                    thread_id=thread_id,
+                    status=values.get("status", "done"),
+                    interrupted=False,
+                )
             )
         except Exception as exc:  # noqa: BLE001 - SSE boundary must always terminate the stream
-            yield _sse({"type": "error", "message": f"{type(exc).__name__}: {exc}", "source": "main"})
-            yield _sse({"type": "done", "thread_id": thread_id, "status": "error", "interrupted": False})
+            yield _sse(make_event("error", message=f"{type(exc).__name__}: {exc}", source="main"))
+            yield _sse(make_event("done", thread_id=thread_id, status="error", interrupted=False))
         finally:
             for middleware in reversed(stack.active()):
                 try:
@@ -238,6 +240,7 @@ async def chat_stream(request_body: ChatRequest, request: Request) -> StreamingR
 @router.post("/chat/{thread_id}/resume")
 async def resume_chat(thread_id: str, request_body: ResumeRequest, request: Request) -> dict[str, Any]:
     """Resume an interrupted thread with supplement and/or approval decisions."""
+    runtime = _runtime(request)
     graph = _graph(request)
     storage = _storage(request)
     record = await storage.get_thread(thread_id)
@@ -262,6 +265,7 @@ async def resume_chat(thread_id: str, request_body: ResumeRequest, request: Requ
     current_user_id.set(user_id)
     current_thread_id.set(thread_id)
     current_run_id.set(ctx.run_id)
+    runtime.reset_model_budget()
 
     async def invoke():
         return await graph.ainvoke(Command(resume=payload), config=_new_config(thread_id))

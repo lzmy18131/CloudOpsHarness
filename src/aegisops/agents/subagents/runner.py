@@ -29,6 +29,7 @@ class SubAgentRunResult:
     full_tool_results: list[dict[str, Any]] = field(default_factory=list)
     stats: LoopStats | None = None
     degraded: bool = False
+    skill_loads: list[str] = field(default_factory=list)
 
 
 class SubAgentRunner:
@@ -115,13 +116,34 @@ class SubAgentRunner:
                 )
                 for item in full_results
             ]
+        # Traceability: every evidence item gets an id, tool, service and a
+        # raw_ref pointing back into the isolated transcript.
+        import uuid
+
+        normalized: list[EvidenceItem] = []
+        for index, item in enumerate(report.evidence):
+            item.id = item.id or f"{config.name}-ev-{uuid.uuid4().hex[:8]}"
+            if not item.tool and index < len(full_results):
+                item.tool = full_results[index].get("tool", "")
+                args = full_results[index].get("arguments", {})
+                item.service = item.service or str(args.get("service", ""))
+            item.raw_ref = item.raw_ref or f"transcript:{config.name}:tool_result:{index + 1}"
+            normalized.append(item)
+        report.evidence = normalized
 
         degraded = loop_result.stats.degraded or report.degraded
         transcript = [m.model_dump() for m in loop_result.messages]
+        import logging
+
+        logger = logging.getLogger("aegisops.skills")
+        skill_loads = list(config.skills)
+        for skill_name in skill_loads:
+            logger.info("agent=%s loaded_skill=%s reason=declared_in_config", config.name, skill_name)
         return SubAgentRunResult(
             report=report,
             transcript=transcript,
             full_tool_results=full_results,
             stats=loop_result.stats,
             degraded=degraded,
+            skill_loads=skill_loads,
         )

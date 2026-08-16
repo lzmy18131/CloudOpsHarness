@@ -19,6 +19,7 @@ from pydantic import BaseModel, ValidationError
 from aegisops.common.circuit_breaker import CircuitBreaker, CircuitOpenError
 from aegisops.config.settings import Settings
 from aegisops.providers.protocol import OpsProvider
+from aegisops.tools.pii import redact_pii
 from aegisops.tools.risk import RISK_POLICY, RiskPolicy, ToolRisk
 from aegisops.tools.schemas import (
     ApplyConfigChangeArgs,
@@ -73,7 +74,9 @@ class ToolResult:
 class ToolObserver:
     """Hook used by tracing middleware; default no-op."""
 
-    async def on_tool_start(self, agent: str, tool_name: str, args: dict[str, Any]) -> None: ...
+    async def on_tool_start(
+        self, agent: str, tool_name: str, args: dict[str, Any], risk_level: int = 0
+    ) -> None: ...
     async def on_tool_end(self, agent: str, result: ToolResult) -> None: ...
 
 
@@ -89,6 +92,7 @@ class ToolRegistry:
     ) -> None:
         self.provider = provider
         self.settings = settings
+        self.pii_redaction = settings.pii_redaction
         self.policy = RiskPolicy(auto_approve_max_risk=settings.auto_approve_max_risk)
         self.observer = observer or ToolObserver()
         self.breaker = breaker or CircuitBreaker(name="ops-tools", failure_threshold=3, cooldown_seconds=15.0)
@@ -285,7 +289,7 @@ class ToolRegistry:
                 content="",
                 error=f"tool call limit exceeded ({self.settings.tool_call_limit})",
             )
-        await self.observer.on_tool_start(agent, name, arguments)
+        await self.observer.on_tool_start(agent, name, arguments, risk_level=int(definition.risk.level))
         started = time.monotonic()
 
         async def _invoke() -> ToolResult:
@@ -294,11 +298,12 @@ class ToolRegistry:
                     definition.handler(**arguments),
                     timeout=self.settings.tool_timeout_seconds,
                 )
-                content = json.dumps(
+                raw_content = json.dumps(
                     data.model_dump() if hasattr(data, "model_dump") else data,
                     default=str,
                     ensure_ascii=False,
                 )
+                content = redact_pii(raw_content) if self.pii_redaction else raw_content
                 return ToolResult(
                     ok=True,
                     tool_name=name,

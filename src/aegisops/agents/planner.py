@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from aegisops.agents.models import IncidentPlan, PlanStep
-from aegisops.llm.base import ModelAdapter
+from aegisops.llm.base import ModelAdapter, ModelCallLimitError
 from aegisops.llm.models import LLMMessage
 from aegisops.llm.structured import StructuredOutputError, generate_structured
 
@@ -74,7 +74,7 @@ async def generate_incident_plan(
         if not plan.steps:
             return fallback
         return plan
-    except StructuredOutputError:
+    except (StructuredOutputError, ModelCallLimitError):
         return fallback
 
 

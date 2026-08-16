@@ -112,3 +112,61 @@ async def test_tool_registry_breaker_degrades_gracefully() -> None:
     assert first.ok is False and second.ok is False
     assert "OPEN" in third.error
     assert breaker.state.value == "open"
+
+
+def test_pii_redaction_replaces_common_shapes() -> None:
+    from aegisops.tools.pii import redact_pii
+
+    text = "contact alice@example.com or +86 138-0013-8000 with key sk-abcdef1234567890"
+    out = redact_pii(text)
+    assert "alice@example.com" not in out
+    assert "138-0013-8000" not in out
+    assert "sk-abcdef1234567890" not in out
+    assert out.count("[REDACTED]") == 3
+
+
+@pytest.mark.asyncio
+async def test_registry_redacts_tool_content(monkeypatch) -> None:
+    class _FakeResult:
+        def model_dump(self, **kwargs):
+            return {"entries": [{"message": "user alice@example.com failed"}]}
+
+    async def fake_logs(self, service, start, end, level=None, pattern=None, limit=100):
+        return _FakeResult()
+
+    settings = Settings(_env_file=None, environment="test", tool_timeout_seconds=5.0)
+    provider = MockOpsProvider(fixtures_dir=PROJECT_ROOT / "fixtures")
+    monkeypatch.setattr(type(provider), "query_logs", fake_logs)
+    registry = ToolRegistry(provider, settings)
+    registry.pii_redaction = True
+    result = await registry.call(
+        "query_logs",
+        {"service": "payment-service", "start": "2026-01-01T00:00:00Z", "end": "2026-01-01T01:00:00Z"},
+    )
+    assert result.ok is True
+    assert "alice@example.com" not in result.content
+    assert "[REDACTED]" in result.content
+
+
+async def test_circuit_breaker_records_transitions() -> None:
+    breaker = CircuitBreaker(name="transition-test", failure_threshold=2, cooldown_seconds=0.0)
+
+    async def fail():
+        raise RuntimeError("down")
+
+    for _ in range(2):
+        with pytest.raises(RuntimeError):
+            await breaker.protect(fail)
+    assert [(t["from"], t["to"]) for t in breaker.transitions] == [("closed", "open")]
+
+    await breaker.protect(lambda: _ok())
+    assert [(t["from"], t["to"]) for t in breaker.transitions] == [
+        ("closed", "open"),
+        ("open", "half_open"),
+        ("half_open", "closed"),
+    ]
+    assert all("at" in t and "reason" in t for t in breaker.transitions)
+
+
+async def _ok():
+    return True

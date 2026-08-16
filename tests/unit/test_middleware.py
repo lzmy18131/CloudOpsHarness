@@ -77,6 +77,7 @@ async def test_build_middleware_stack_has_required_names(runtime) -> None:
         "sandbox_breaker",
         "model_call_limit",
         "tool_call_limit",
+        "pii_redaction",
     ):
         assert required in names
 

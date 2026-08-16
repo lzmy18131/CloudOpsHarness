@@ -147,6 +147,16 @@ class IncidentTicket(BaseModel):
     created_at: str
 
 
+class DryRunResult(BaseModel):
+    tool_name: str
+    target: str
+    planned_change: str
+    before_state: dict[str, Any] = Field(default_factory=dict)
+    expected_result: str
+    rollback_method: str
+    risk_level: int = 0
+
+
 class ActionResult(BaseModel):
     ok: bool
     action: str

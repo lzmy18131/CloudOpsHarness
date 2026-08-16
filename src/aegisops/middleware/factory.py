@@ -6,6 +6,7 @@ from aegisops.middleware.base import MiddlewareStack
 from aegisops.middleware.context_injection import ContextInjectionMiddleware
 from aegisops.middleware.memory_update import MemoryUpdateMiddleware
 from aegisops.middleware.model_limit import ModelCallLimitMiddleware
+from aegisops.middleware.pii_redaction import PIIRedactionMiddleware
 from aegisops.middleware.sandbox_breaker import SandboxCircuitBreakerMiddleware
 from aegisops.middleware.sandbox_health import SandboxHealthMiddleware
 from aegisops.middleware.skills_sync import SkillsSyncMiddleware
@@ -33,6 +34,7 @@ def build_middleware_stack(runtime) -> MiddlewareStack:
             ModelCallLimitMiddleware(limit=runtime.settings.model_call_limit),
             ToolCallLimitMiddleware(runtime.registry),
             ToolPolicyMiddleware(runtime.registry.policy),
+            PIIRedactionMiddleware(enabled=runtime.settings.pii_redaction),
             TracingMiddleware(),
         ]
     )

@@ -65,6 +65,7 @@ async def run_experiment(
         }
     comparisons = _build_comparisons(artifacts)
     artifacts["comparisons"] = comparisons
+    artifacts["bucket_comparisons"] = _build_bucket_comparisons(artifacts)
     summary_path = output / "summary.json"
     summary_path.write_text(json.dumps(artifacts, ensure_ascii=False, indent=2), encoding="utf-8")
     markdown_path = output / "summary.md"
@@ -97,6 +98,9 @@ def _build_comparisons(artifacts: dict[str, Any]) -> list[dict[str, Any]]:
                 compare_paired(a, b, metric="llm_calls"),
                 compare_paired(a, b, metric="token_cost"),
                 compare_paired(a, b, metric="latency_ms"),
+                compare_paired(a, b, metric="main_context_tokens"),
+                compare_paired(a, b, metric="unnecessary_tool_call_rate"),
+                compare_paired(a, b, metric="delegation_accuracy"),
             ],
         }
         if left == "harness-no-recovery":
@@ -108,6 +112,53 @@ def _build_comparisons(artifacts: dict[str, Any]) -> list[dict[str, Any]]:
                 )
         comparisons.append(entry)
     return comparisons
+
+
+BUCKETS: dict[str, list[str]] = {
+    "simple": ["easy", "single_source"],
+    "multi_source": ["multi_source"],
+    "multi_hop": ["multi_hop", "dependency_chain"],
+    "complex": [
+        "multi_source",
+        "multi_hop",
+        "dependency_chain",
+        "ambiguous",
+        "dangerous_action",
+    ],
+    "failure_injection": ["tool_failure", "sandbox_failure"],
+}
+
+
+def _build_bucket_comparisons(artifacts: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per-difficulty paired comparison (answers: when is Multi-Agent worth it?)."""
+    left, right = "single-agent", "harness"
+    if left not in artifacts["systems"] or right not in artifacts["systems"]:
+        return []
+    a_all = [ScenarioRunResult(**r) for r in artifacts["systems"][left]["results"]]
+    b_all = [ScenarioRunResult(**r) for r in artifacts["systems"][right]["results"]]
+    bucket_results: list[dict[str, Any]] = []
+    for bucket, categories in BUCKETS.items():
+        a = [r for r in a_all if r.category in categories]
+        b = [r for r in b_all if r.category in categories]
+        if not a or not b:
+            continue
+        bucket_results.append(
+            {
+                "bucket": bucket,
+                "n": len(a),
+                "binary": [
+                    compare_paired(a, b, metric="rca_correct", binary=True),
+                    compare_paired(a, b, metric="task_completed", binary=True),
+                ],
+                "continuous": [
+                    compare_paired(a, b, metric="token_cost"),
+                    compare_paired(a, b, metric="latency_ms"),
+                    compare_paired(a, b, metric="tool_calls"),
+                    compare_paired(a, b, metric="evidence_completeness"),
+                ],
+            }
+        )
+    return bucket_results
 
 
 def render_summary_markdown(artifacts: dict[str, Any]) -> str:
@@ -130,13 +181,26 @@ def render_summary_markdown(artifacts: dict[str, Any]) -> str:
             "evidence_completeness",
             "unsafe_action_rate",
             "unsafe_action_rate_dangerous",
+            "unsafe_execution_count",
             "hitl_compliance_rate",
+            "hitl_recall",
+            "hitl_precision",
+            "resume_success_rate",
+            "remediation_verification_rate",
+            "mean_unnecessary_tool_call_rate",
+            "mean_delegation_accuracy",
         ):
             lines.append(f"- {key}: {agg[key]:.4f}")
-        for key in ("recovery_success_rate",):
+        for key in ("recovery_success_rate", "mean_recovery_latency_ms"):
             if agg.get(key) is not None:
                 lines.append(f"- {key}: {agg[key]:.4f}")
-        for key in ("mean_tool_calls", "mean_llm_calls", "mean_token_cost", "mean_latency_ms"):
+        for key in (
+            "mean_tool_calls",
+            "mean_llm_calls",
+            "mean_token_cost",
+            "mean_latency_ms",
+            "mean_main_context_tokens",
+        ):
             lines.append(f"- {key}: {agg[key]:.2f}")
         lines.append("")
     lines.append("## Paired comparisons")
@@ -149,6 +213,21 @@ def render_summary_markdown(artifacts: dict[str, Any]) -> str:
                 f"discordant b={entry['b']} c={entry['c']} McNemar p={entry['mcnemar_p']:.4f}"
             )
         for entry in comparison["continuous"]:
+            lines.append(
+                f"- {entry['metric']}: mean_diff={entry['mean_diff']:.2f} "
+                f"95% CI [{entry['ci_low']:.2f}, {entry['ci_high']:.2f}]"
+            )
+        lines.append("")
+    lines.append("## Bucket comparisons (single-agent vs harness)")
+    lines.append("")
+    for bucket in artifacts.get("bucket_comparisons", []):
+        lines.append(f"### {bucket['bucket']} (n={bucket['n']})")
+        for entry in bucket["binary"]:
+            lines.append(
+                f"- {entry['metric']}: a={entry['a_rate']:.3f} b={entry['b_rate']:.3f} "
+                f"McNemar p={entry['mcnemar_p']:.4f}"
+            )
+        for entry in bucket["continuous"]:
             lines.append(
                 f"- {entry['metric']}: mean_diff={entry['mean_diff']:.2f} "
                 f"95% CI [{entry['ci_low']:.2f}, {entry['ci_high']:.2f}]"

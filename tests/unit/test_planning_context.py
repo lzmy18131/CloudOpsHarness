@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from aegisops.agents.context import ContextCompressor, assemble_main_messages, evidence_block
+from aegisops.agents.context import (
+    ContextCompressor,
+    assemble_main_messages,
+    compress_main_context,
+    evidence_block,
+)
 from aegisops.agents.planner import PLAN_TEMPLATE, build_default_plan
 from aegisops.llm.models import LLMMessage
 
@@ -74,3 +79,19 @@ def test_compressor_noop_below_threshold() -> None:
     compressed, offloaded = compressor.compress(messages)
     assert offloaded == []
     assert compressed == messages
+
+
+def test_compress_main_context_preserves_evidence_and_reduces_tokens() -> None:
+    messages = [
+        LLMMessage(role="system", content="trusted system instructions"),
+        LLMMessage(role="user", content="Evidence so far:\ncritical-error-code-500-config-value-42"),
+        *[LLMMessage(role="user", content=f"old turn {i} " + "x" * 400) for i in range(10)],
+        LLMMessage(role="assistant", content="recent answer"),
+    ]
+    compressed, stats = compress_main_context(messages, threshold_tokens=600, keep_last=2)
+    assert stats["compressed"] is True
+    assert stats["tokens_after"] < stats["tokens_before"]
+    assert stats["offloaded_turns"] > 0
+    joined = "\n".join(m.content for m in compressed)
+    assert "critical-error-code-500-config-value-42" in joined  # evidence preserved
+    assert "recent answer" in joined  # tail preserved

@@ -152,3 +152,23 @@ def test_zip_package_extracts_files() -> None:
     payload = _make_zip("ok-skill", {"SKILL.md": VALID_SKILL_MD})
     package = SkillPackage.from_zip_bytes(payload)
     assert "ok-skill/SKILL.md" in package.files
+
+
+def test_progressive_disclosure_main_context_has_metadata_not_body() -> None:
+    from aegisops.agents.context import assemble_main_messages
+
+    registry = SkillRegistry(PROJECT_ROOT / "skills")
+    body = registry.load_body("latency-analysis")
+    assert "Latency Analysis" in body
+    messages = assemble_main_messages(
+        {
+            "user_id": "u",
+            "service": "payment-service",
+            "environment": "prod",
+            "messages": [{"role": "user", "content": "debug"}],
+        },
+        skills_frontmatter=[m.model_dump() for m in registry.list_metadata()],
+    )
+    joined = "\n".join(m.content for m in messages)
+    assert "latency-analysis" in joined
+    assert "## 1. 画形状" not in joined  # full SKILL.md body is NOT injected

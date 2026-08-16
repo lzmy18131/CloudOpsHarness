@@ -58,6 +58,9 @@ def build_incident_graph(runtime: AegisRuntime, checkpointer: Any = None) -> Any
         if not plan:
             return END
         index = int(state.get("current_step_index", 0))
+        if state.get("status") == "partial_limit":
+            # Plan budget exhausted: still emit a partial incident report.
+            return "report"
         return dispatch_for_step(plan[index]) if index < len(plan) else END
 
     graph.add_conditional_edges("planner", route_after_planner)

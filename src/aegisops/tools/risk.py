@@ -42,6 +42,7 @@ READ_ONLY_TOOLS = {
     "get_current_release",
     "get_service_catalog",
     "verify_service_health",
+    "dry_run_action",
 }
 
 RISK_POLICY: dict[str, ToolRisk] = {

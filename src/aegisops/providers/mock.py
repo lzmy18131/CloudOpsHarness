@@ -27,6 +27,7 @@ from aegisops.providers.models import (
     ConfigChange,
     ConfigDiffResult,
     DeploymentRecord,
+    DryRunResult,
     FaultInjection,
     HealthStatus,
     HistoricalIncident,
@@ -419,6 +420,57 @@ class MockOpsProvider(OpsProvider):
         return self._compute_health(service)
 
     # ------------------------------------------------------------ write tools
+    async def dry_run_action(self, tool_name: str, arguments: dict[str, Any]) -> DryRunResult:
+        service = arguments.get("service", "")
+        self._require_service(service)
+        if tool_name == "rollback_release":
+            before = self.current_releases.get(service, self.catalog_by_name[service].current_release)
+            target = arguments.get("to_version", before)
+            return DryRunResult(
+                tool_name=tool_name,
+                target=service,
+                planned_change=f"release {before} -> {target}",
+                before_state={"release": before},
+                expected_result="latency/error rate return to baseline",
+                rollback_method=f"rollback_release back to {before} (reverse the change)",
+                risk_level=3,
+            )
+        if tool_name == "scale_service":
+            before = self.replicas.get(service, 1)
+            target = arguments.get("replicas", before)
+            return DryRunResult(
+                tool_name=tool_name,
+                target=service,
+                planned_change=f"replicas {before} -> {target}",
+                before_state={"replicas": before},
+                expected_result="request queue drains; latency recovers",
+                rollback_method=f"scale_service back to {before} replicas",
+                risk_level=2,
+            )
+        if tool_name == "restart_service":
+            return DryRunResult(
+                tool_name=tool_name,
+                target=service,
+                planned_change="restart all pods (rolling)",
+                before_state={"release": self.current_releases.get(service)},
+                expected_result="transient saturation cleared",
+                rollback_method="restart is not reversible; rely on release config",
+                risk_level=2,
+            )
+        if tool_name == "apply_config_change":
+            key = arguments.get("key", "")
+            value = arguments.get("value", "")
+            return DryRunResult(
+                tool_name=tool_name,
+                target=service,
+                planned_change=f"set {key}={value}",
+                before_state={"config_overrides": dict(self.config_overrides.get(service, {}))},
+                expected_result="configuration restored to intended value",
+                rollback_method=f"apply_config_change {key} back to previous value",
+                risk_level=3,
+            )
+        raise OpsProviderError(f"dry_run not supported for {tool_name}")
+
     async def create_incident_ticket(
         self, service: str, title: str, severity: str, description: str
     ) -> IncidentTicket:

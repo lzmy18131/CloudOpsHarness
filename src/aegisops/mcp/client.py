@@ -13,6 +13,7 @@ from aegisops.providers.models import (
     ActionResult,
     ConfigDiffResult,
     DeploymentRecord,
+    DryRunResult,
     HistoricalIncident,
     IncidentTicket,
     LogsResult,
@@ -97,6 +98,11 @@ class MCPToolAdapter(OpsProvider):
 
     async def verify_service_health(self, service: str) -> ServiceHealth:
         return ServiceHealth.model_validate(await self._call("verify_service_health", {"service": service}))
+
+    async def dry_run_action(self, tool_name: str, arguments: dict) -> DryRunResult:
+        return DryRunResult.model_validate(
+            await self._call("dry_run_action", {"tool_name": tool_name, "arguments": arguments})
+        )
 
     async def create_incident_ticket(
         self, service: str, title: str, severity: str, description: str

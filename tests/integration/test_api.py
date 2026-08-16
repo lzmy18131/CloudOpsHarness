@@ -58,6 +58,22 @@ def test_sse_full_flow_interrupt_resume_history_traces(tmp_path) -> None:
             )
         kinds = [event["type"] for event in events]
         assert "run_start" in kinds
+        # Unified event envelope: every frame is attributable and ordered.
+        sequences = []
+        for event in events:
+            assert event["event_type"] == event["type"]
+            assert "run_id" in event and "thread_id" in event
+            assert "timestamp" in event and "sequence" in event
+            assert event["source"] in {
+                "main",
+                "observability",
+                "log-analysis",
+                "change-analysis",
+                "remediation",
+            }
+            sequences.append(event["sequence"])
+        assert sequences == sorted(sequences)
+        assert len(set(sequences)) == len(sequences)  # no duplicates
         assert "plan" in kinds
         assert "agent_start" in kinds
         assert "tool_start" in kinds
@@ -90,6 +106,21 @@ def test_sse_full_flow_interrupt_resume_history_traces(tmp_path) -> None:
         traces = client.get("/api/traces", params={"thread_id": thread_id}).json()
         tool_names = [t["tool_name"] for t in traces if t.get("tool_name")]
         assert "rollback_release" in tool_names
+        kinds = {t.get("kind") for t in traces}
+        assert {
+            "tool_start",
+            "tool_end",
+            "agent_start",
+            "agent_end",
+            "hitl_decision",
+            "action_executed",
+            "verification",
+            "incident_report",
+        } <= kinds
+        rollback_start = next(
+            t for t in traces if t.get("tool_name") == "rollback_release" and t.get("kind") == "tool_start"
+        )
+        assert rollback_start.get("risk_level") == 3
 
         assert client.delete(f"/api/history/{thread_id}").json()["deleted"] is True
     finally:

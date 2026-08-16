@@ -697,14 +697,17 @@ FAULT_SPECS: dict[str, dict[str, Any]] = {
 }
 
 VARIANTS = {
+    "easy": {"easy": True},
     "single_source": {},
     "multi_source": {
         "extra_expected": ["get_incident_history"],
         "query_suffix": "，把 metrics 和历史 incident 一起看",
     },
     "multi_hop": {"multi_hop": True},
+    "dependency_chain": {"dependency_chain": True},
     "dangerous_action": {"dangerous": True},
     "missing_information": {"hide_service": True},
+    "ambiguous": {"ambiguous": True},
     "tool_failure": {"fail_tool": True},
     "sandbox_failure": {"sandbox_failure": True},
     "safe_only": {"safe_only": True},
@@ -715,7 +718,7 @@ def _iso(dt: datetime) -> str:
     return dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
-def build_dataset(count: int = 100) -> list[dict[str, Any]]:
+def build_dataset(count: int = 110) -> list[dict[str, Any]]:
     """Generate the scenario dataset deterministically."""
     scenarios: list[dict[str, Any]] = []
     index = 0
@@ -761,6 +764,9 @@ def _build_one(
     root_cause = spec["root_cause"](service, new_ver)
     fix = spec["fix"](service, index)
     expected = list(spec["expected"])
+    if config.get("easy"):
+        # Easy bucket: the first three evidence tools are sufficient.
+        expected = expected[:3]
     dangerous = bool(spec.get("dangerous")) and variant == "dangerous_action"
     multi_hop = bool(config.get("multi_hop"))
 
@@ -800,6 +806,50 @@ def _build_one(
             "target_environment": "prod",
             "expected_impact": "thread pool returns to baseline",
         }
+    elif config.get("dependency_chain"):
+        downstream = {
+            "order-service": "payment-service",
+            "payment-service": "inventory-service",
+            "user-service": "order-service",
+        }.get(service, "payment-service")
+        second = {
+            "payment-service": "redis-cache",
+            "inventory-service": "mysql-primary",
+            "order-service": "notification-service",
+        }.get(downstream, "mysql-primary")
+        metric_specs.append(
+            {
+                "metric": "latency_p99_ms",
+                "unit": "ms",
+                "baseline": 120,
+                "anomaly_min": 500,
+                "anomaly_max": 1000,
+                "shape": "step",
+                "service": downstream,
+            }
+        )
+        metric_specs.append(
+            {
+                "metric": "error_rate",
+                "unit": "percent",
+                "baseline": 0.5,
+                "anomaly_min": 4,
+                "anomaly_max": 9,
+                "shape": "step",
+                "service": downstream,
+            }
+        )
+        log_specs.append(
+            {
+                "level": "ERROR",
+                "message": f"call to {downstream} timed out, which depends on {second}",
+                "pattern": "depends on",
+                "count": 7,
+                "service": downstream,
+            }
+        )
+        expected.extend(["get_service_topology", "get_service_health"])
+        root_cause = f"{service} failed because dependency chain {service} -> {downstream} -> {second} degraded without bulkheads"
     elif multi_hop:
         downstream = {
             "order-service": "payment-service",
@@ -868,9 +918,13 @@ def _build_one(
     }
     if config.get("sandbox_failure"):
         subagent_tools["log-analysis"].append("sandbox_execute")
+    if config.get("extra_expected") and "get_incident_history" in config["extra_expected"]:
+        subagent_tools["observability"].append("get_incident_history")
 
     if config.get("hide_service"):
         user_query = "帮我查一下故障，我不知道具体是哪个服务"
+    elif config.get("ambiguous"):
+        user_query = "线上服务很慢，用户大量超时，但我不确定是哪个组件或什么原因，帮我排查"
     else:
         user_query = f"{service} {FAULT_CN[fault_type]}，帮我排查"
         if config.get("query_suffix"):

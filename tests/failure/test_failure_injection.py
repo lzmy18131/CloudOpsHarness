@@ -84,3 +84,44 @@ def test_mongo_unavailable_falls_back_to_file_storage(tmp_path, monkeypatch) -> 
     with TestClient(app) as client:
         assert client.get("/api/health").json()["status"] == "ok"
         assert isinstance(app.state.storage, FileThreadStorage)
+
+
+def test_llm_timeout_is_retried_then_recovers() -> None:
+    import asyncio
+
+    from pydantic import BaseModel
+
+    from aegisops.llm.fake import FakeLLM
+    from aegisops.llm.models import LLMMessage
+    from aegisops.llm.structured import generate_structured
+
+    class TimeoutOnceLLM(FakeLLM):
+        def __init__(self):
+            super().__init__(
+                script=[
+                    __import__("aegisops.llm.fake", fromlist=["ScriptedTurn"]).ScriptedTurn(
+                        json_payload={"answer": "recovered", "confidence": 0.5}, match="previous output"
+                    )
+                ]
+            )
+            self.failed = False
+
+        async def generate(self, messages, tools=None, response_format=None):
+            if not self.failed:
+                self.failed = True
+                raise TimeoutError("llm timeout (injected)")
+            return await super().generate(messages, tools, response_format)
+
+    class Tiny(BaseModel):
+        answer: str
+        confidence: float
+
+    result = asyncio.run(
+        generate_structured(
+            TimeoutOnceLLM(),
+            [LLMMessage(role="user", content="query")],
+            schema_name="Tiny",
+            output_model=Tiny,
+        )
+    )
+    assert result.answer == "recovered"

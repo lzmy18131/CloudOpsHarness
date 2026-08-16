@@ -35,9 +35,12 @@ async def run_demo(demo: int, out: str | None = None) -> None:
         data_dir=PROJECT_ROOT / "data" / "demo",
         fixtures_dir=PROJECT_ROOT / "fixtures",
         skills_dir=PROJECT_ROOT / "skills",
-        checkpoint_backend="memory",
+        checkpoint_backend="sqlite" if demo == 4 else "memory",
     )
     runtime = AegisRuntime(settings)
+    if demo == 4:
+        await run_demo_sandbox_crash_resume(runtime)
+        return
     if demo == 1:
         scenario = pick_scenario("bad-deployment")
         approve = True
@@ -107,12 +110,73 @@ async def run_demo(demo: int, out: str | None = None) -> None:
     await runtime.destroy_sandboxes()
 
 
+async def run_demo_sandbox_crash_resume(runtime: AegisRuntime) -> None:
+    """Demo D: sandbox crash -> automatic recovery -> HITL interrupt ->
+    simulated process restart (SQLite checkpoint reopen) -> resume -> finish."""
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.types import Command
+
+    from aegisops.agents.checkpoint import open_checkpointer
+    from aegisops.evaluation.runners import DyingSandbox
+
+    scenario = pick_scenario("bad-deployment", "sandbox_failure")
+    runtime.scenario_index = {scenario["incident_id"]: scenario}
+    runtime.activate_scenario(scenario["incident_id"])
+    proxy = await runtime.sandbox_manager.ensure("demo-user")
+    dying = DyingSandbox(runtime.settings.data_dir / "demo4-dying", "demo-user")
+    await dying.create()
+    dying.dead = True
+    proxy.replace_backend(dying)
+    print(f"=== Demo 4: {scenario['title']} (sandbox crash + resume) ===")
+
+    if runtime.settings.checkpoint_backend == "sqlite":
+        handle = await open_checkpointer(runtime.settings)
+        graph = runtime.build_graph(checkpointer=handle.saver)
+    else:
+        handle = None
+        graph = runtime.build_graph(checkpointer=InMemorySaver())
+    config = {"configurable": {"thread_id": "demo-4"}}
+    first = await graph.ainvoke(
+        {
+            "messages": [{"role": "user", "content": scenario["user_query"]}],
+            "user_id": "demo-user",
+            "thread_id": "demo-4",
+            "run_id": "demo4-run",
+        },
+        config=config,
+    )
+    print("[stage 1] sandbox crash auto-recovered:", runtime.sandbox_manager.events[-1])
+    pending = first.get("pending_interrupt")
+    print(f"[stage 2] HITL interrupt: {pending.get('type') if pending else None}")
+    if handle is not None:
+        await handle.aclose()
+        print("[stage 3] simulated process restart: checkpoint handle closed")
+
+    handle2 = (
+        await open_checkpointer(runtime.settings) if runtime.settings.checkpoint_backend == "sqlite" else None
+    )
+    graph2 = runtime.build_graph(checkpointer=handle2.saver if handle2 else InMemorySaver())
+    final = await graph2.ainvoke(
+        Command(resume={"decisions": [{"type": "approve", "tool_name": "rollback_release"}]}),
+        config=config,
+    )
+    print("[stage 4] resumed and finished:", final.get("status"))
+    print(final.get("final_report", "")[:1200])
+    if handle2 is not None:
+        await handle2.aclose()
+    report_dir = PROJECT_ROOT / "data" / "demo_reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    path = report_dir / f"demo4_{scenario['incident_id']}.md"
+    path.write_text(final.get("final_report", ""), encoding="utf-8")
+    print(f"\nreport saved: {path}")
+
+
 if __name__ == "__main__":
     import argparse
     import asyncio
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--demo", type=int, choices=[1, 2, 3], default=1)
+    parser.add_argument("--demo", type=int, choices=[1, 2, 3, 4], default=1)
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
     asyncio.run(run_demo(args.demo, args.out))

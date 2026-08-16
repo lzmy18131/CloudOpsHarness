@@ -51,6 +51,8 @@ python -m aegisops.demo --demo 1
 python -m aegisops.demo --demo 2
 # Demo 3: dangerous action REJECTED → safe alternative，不执行生产变更
 python -m aegisops.demo --demo 3
+# Demo 4: sandbox crash → automatic recovery → HITL → SQLite 重启 → resume
+python -m aegisops.demo --demo 4
 
 # Web UI + SSE
 uvicorn aegisops.api.app:create_app --factory --port 8090
@@ -96,34 +98,70 @@ uvicorn aegisops.api.app:create_app --factory --port 8090
 **结果全部来自真实运行 artifact**（`eval_results/*/summary.json`），禁止伪造。离线确定性评测（FakeLLM，n=100）与真实 LLM 评测（需 key）使用同一 harness。
 
 <!-- EVAL_RESULTS -->
-当前真实 artifact：`eval_results/offline_20260815T173021Z/summary.json`（FakeLLM 确定性评测，n=100，每系统 100 次运行，2026-08-15 UTC）。
+当前真实 artifact：`eval_results/offline_20260816T030945Z/summary.json`
+（tag `offline-fake-llm-n110`，n=110 × 5 systems，2026-08-16 UTC）。
 
-| 指标 | Single-Agent | Multi-Agent | Multi (无隔离) | **Harness** | Harness (无恢复) |
+| 指标 | Single | Multi | Multi 无隔离 | **Harness** | Harness 无恢复 |
 |---|---|---|---|---|---|
 | Root Cause Accuracy | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | Task Completion | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Tool Selection Accuracy | 1.000 | 0.939 | 0.939 | 0.939 | 0.939 |
-| Evidence Completeness | 1.000 | 0.926 | 0.926 | 0.926 | 0.926 |
-| Unsafe Action Rate（危险场景） | 1.000 | 1.000 | 1.000 | **0.000** | 0.000 |
-| HITL Compliance | 0.000 | 0.000 | 0.000 | **1.000** | 1.000 |
-| Recovery Success（沙箱故障场景） | 0.000 | 1.000 | 1.000 | **1.000** | 0.000 |
-| Mean Tool Calls | 5.63 | 27.10 | 27.10 | 27.00 | 27.00 |
-| Mean LLM Calls | 6.63 | 43.10 | 43.10 | 43.10 | 43.10 |
-| Mean Token Cost | 4975.6 | 38032.6 | 38082.6 | 38043.0 | 38041.4 |
-| Mean Latency (ms) | 69.4 | 130.8 | 134.4 | 131.9 | 113.6 |
+| Tool Selection Accuracy | 1.000 | 0.987 | 0.987 | 0.987 | 0.987 |
+| Evidence Completeness | 1.000 | 0.984 | 0.984 | 0.984 | 0.984 |
+| Unsafe Action（危险场景） | 1.000 | 1.000 | 1.000 | **0.000** | 0.000 |
+| Unsafe Execution Count | 10 | 10 | 10 | **0** | 0 |
+| HITL Compliance / Recall | 0.000 | 0.000 | 0.000 | **1.000** | 1.000 |
+| Recovery Success（10 个沙箱故障场景） | 0.000 | 1.000 | 1.000 | **1.000** | 0.000 |
+| Mean Recovery Latency (ms) | - | 159.3 | 173.4 | 159.5 | - |
+| Remediation Verification Rate | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| Resume Success（missing-info 场景） | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
+| Mean Main-Context Tokens | 0* | 1324.9 | 1368.8 | 1324.9 | 1324.9 |
+| Mean Unnecessary Tool Rate | 0.000 | 0.420 | 0.420 | 0.420 | 0.420 |
+| Mean Tool Calls | 5.41 | 27.45 | 27.45 | 27.36 | 27.36 |
+| Mean LLM Calls | 6.41 | 43.45 | 43.45 | 43.45 | 43.45 |
+| Mean Token Cost | 4799.2 | 39171.5 | 39221.7 | 39172.8 | 39170.4 |
+| Mean Latency (ms) | 56.8 | 121.3 | 124.9 | 123.7 | 109.2 |
 
-配对统计（同一 100 个 incident 分别跑两套系统）：
-- Unsafe action：Single vs Harness McNemar p=0.002（10 个 discordant 对全部在 Single 侧）；Multi vs Harness 同样 p=0.002。
+*Single-Agent 没有 main/subagent 分离，`main_context_tokens` 不适用，记为 0。
+
+配对统计（同一 110 个 incident 配对运行）：
+- Unsafe action：Single vs Harness 与 Multi vs Harness 的 McNemar p=0.002（10 个 discordant 对全部在无 HITL 侧）。
 - Recovery：Harness vs Harness-no-recovery p=0.002（10 对全部在 Harness 侧）。
-- Token cost：Single vs Harness mean diff −33067（95% CI [−33316, −32818]）；Multi 无隔离 vs 有隔离 mean diff −49.97（95% CI [−54.1, −45.7]），方向一致但本数据集上幅度很小。
-- Latency：Single vs Harness mean diff −62.5 ms（95% CI [−69.2, −56.6]）。
+- Context isolation ablation：关闭隔离后 main-context 平均 +43.94 token（95% CI [+43.06, +44.84]），总 token +50.19（95% CI [+46.37, +54.24]），latency 差异不显著。
+- Single vs Harness：token −34373.6（95% CI [−34681.4, −34075.1]），latency −66.9 ms（95% CI [−71.7, −62.7]）。
+- Bucket（Single vs Harness）：simple n=20 / multi_source n=10 / multi_hop n=20 / complex n=50 / failure_injection n=20；FakeLLM 下所有 bucket 的 RCA 都达上限，有效差异集中在成本（Multi 比 Single 多约 33k–37k token）与 unsafe（Harness=0）。
 
-诚实结论：FakeLLM 是确定性控制器，RCA/Completion 都达到上限，**该评测度量的是 harness 正确性（HITL 合规、恢复、成本），不是语言模型能力**。真实 LLM 结果必须用 `scripts/run_real_eval.py` 在独立目录生成，本仓库不包含任何伪造数字。
+诚实结论：FakeLLM 是确定性控制器，RCA/Completion 在所有系统都达上限；**该评测度量的是 harness 正确性（HITL 拦截、恢复、resume、隔离成本），不是语言模型能力**。真实 LLM 结果必须用 `scripts/run_real_eval.py` 在独立目录生成，本仓库不含任何伪造数字。
 <!-- /EVAL_RESULTS -->
 
 统计方法：binary 指标 McNemar 精确检验；continuous 指标 paired bootstrap 95% CI。方法论见 [`EVALUATION.md`](EVALUATION.md)。
 
-## 9. Quick Start
+
+## 9. Claim → Evidence 映射
+
+每个核心 claim 都可被面试官沿着代码/测试/artifact 验证：
+
+| Claim | Code | Test / Artifact |
+|---|---|---|
+| Main 不读 raw logs/metrics | `assemble_main_messages()` 不读取 `transcripts` | `tests/unit/test_planning_context.py`, `tests/integration/test_main_agent.py` |
+| Context Compression 真的运行 | `compress_main_context()` 在 synthesize 调用 | `test_compress_main_context_preserves_evidence_and_reduces_tokens` + `context_stats` |
+| 危险工具无法绕过 HITL | `ToolRegistry.call(approved=...)` 抛 `ToolApprovalRequiredError` | `test_tools.py`, `tests/security/test_security.py` |
+| Prompt injection 不改 policy | log 注入文本只能留在 transcript | `tests/security/test_security.py` |
+| HITL interrupt + resume 不重跑 | `pause` 唯一 interrupt + SQLite checkpoint | `test_main_agent.py`, `test_checkpoint_resume.py`（含 tool call 计数断言） |
+| 进程重启后 resume | `AsyncSqliteSaver` | `test_checkpoint_resume.py` |
+| Sandbox crash 自动恢复 | `manager.rebuild()` + `proxy.replace_backend()` | `tests/failure/test_sandbox_recovery.py` |
+| 用户隔离（sandbox/memory/history） | 每 user 独立 workspace/文件 | `test_sandbox.py`, `test_security.py`, `test_storage.py` |
+| Circuit breaker 状态机 + transition 记录 | `CircuitBreaker.transitions` | `test_tools.py::test_circuit_breaker_records_transitions` |
+| 无限循环防护 | `LimitedModelAdapter` / tool limit / max_plan_steps / delegation depth | 代码 `llm/base.py`, `nodes.py`；行为由 limit 测试覆盖 |
+| SSE 统一 envelope | `agents/events.py` | `tests/unit/test_events.py`, `test_api.py` |
+| 结构化输出校验矩阵 | `generate_structured` retry/repair/fallback | `tests/unit/test_llm.py`（missing/wrong/truncated/extra/invalid confidence） |
+| Memory 与 CMDB 分离 | `PreferenceStore` 只存偏好；catalog 走工具 | `test_skills_memory.py` |
+| Skills 渐进披露 + 加载记录 | frontmatter-only 注入 + `skills_loaded` 统计 | `test_skills_memory.py`, runner 日志 |
+| Dynamic skill 安全门 | `SkillInstaller` | `test_skills_memory.py`（7 项安全测试） |
+| Dry run before HITL | `dry_run_action` L0 + `ActionRequest.dry_run` | `test_tools.py`, executor 代码 |
+| Remediation 后 verify + resolved | `build_verify_node` before/after + resolved | `test_main_agent.py`（最终状态） |
+| Evaluation 数字可复算 | raw per-run 明细 | `eval_results/offline_20260816T030945Z/summary.json` |
+
+## 10. Quick Start
 
 ```bash
 # 依赖（固定版本）
@@ -138,7 +176,7 @@ uvicorn aegisops.api.app:create_app --factory --port 8090
 docker compose up -d mongo   # 然后 AEGIS_STORAGE_BACKEND=mongo
 ```
 
-## 10. Limitations
+## 11. Limitations
 
 - LocalSandboxBackend 仅用于开发演示；生产/不可信输入必须 `AEGIS_SANDBOX_BACKEND=docker`。
 - FakeLLM 评测度量的是 **harness 正确性**，不是语言模型能力；真实 LLM 结果用 `scripts/run_real_eval.py` 单独生成。

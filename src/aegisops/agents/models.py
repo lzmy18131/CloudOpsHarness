@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-StepStatus = Literal["pending", "in_progress", "completed", "failed"]
+StepStatus = Literal["pending", "in_progress", "completed", "failed", "skipped"]
 
 
 class PlanStep(BaseModel):
@@ -33,8 +33,13 @@ class IncidentPlan(BaseModel):
 
 
 class EvidenceItem(BaseModel):
+    id: str = ""
     source: str
     summary: str
+    tool: str = ""
+    timestamp: str | None = None
+    service: str | None = None
+    raw_ref: str | None = None
     detail: dict[str, Any] = Field(default_factory=dict)
     tokens: int = 0
 
@@ -57,10 +62,16 @@ class SubAgentReport(BaseModel):
     signals: list[str] = Field(default_factory=list)
     hypotheses: list[str] = Field(default_factory=list)
     evidence: list[EvidenceItem] = Field(default_factory=list)
-    confidence: float = 0.0
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     anomaly_start: str | None = None
     anomaly_end: str | None = None
     degraded: bool = False
+    # change-analysis fields (correlation vs causation)
+    temporal_correlation: bool | None = None
+    correlation: str = ""
+    causal_confidence: float | None = None
+    supporting_evidence: list[str] = Field(default_factory=list)
+    contradicting_evidence: list[str] = Field(default_factory=list)
     # remediation-specific fields
     proposed_actions: list[ProposedAction] = Field(default_factory=list)
     dangerous_action: bool = False
@@ -71,8 +82,10 @@ class SubAgentReport(BaseModel):
 class RcaHypothesis(BaseModel):
     root_cause: str
     fault_type: str = "unknown"
-    confidence: float = 0.0
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     evidence_summary: str = ""
+    supporting_evidence: list[str] = Field(default_factory=list)
+    contradicting_evidence: list[str] = Field(default_factory=list)
     unresolved: list[str] = Field(default_factory=list)
 
 
@@ -92,6 +105,7 @@ class ActionRequest(BaseModel):
     target_environment: str = "prod"
     before_state: dict[str, Any] = Field(default_factory=dict)
     expected_impact: str = ""
+    dry_run: dict[str, Any] | None = None
 
 
 class InterruptPayload(BaseModel):

@@ -4,6 +4,7 @@ const state = {
   threadId: null,
   streamingBubble: null,
   interrupt: null,
+  lastSeq: 0,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -127,9 +128,15 @@ async function streamChat(message) {
 }
 
 function handleEvent(event) {
+  // Unified envelope: drop duplicates / out-of-order frames per connection.
+  if (event.sequence !== undefined) {
+    if (event.sequence <= state.lastSeq) return;
+    state.lastSeq = event.sequence;
+  }
   switch (event.type) {
     case "run_start":
       state.threadId = event.thread_id;
+      state.lastSeq = 0;
       break;
     case "token":
       if (!state.streamingBubble) {

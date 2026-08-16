@@ -129,3 +129,56 @@ class ContextCompressor:
             roles[message.role] = roles.get(message.role, 0) + 1
         first_user = next((m.content for m in messages if m.role == "user"), "")
         return f"roles={roles}; first_user_turn={first_user[:200]!r}"
+
+
+def compress_main_context(
+    messages: list[LLMMessage],
+    *,
+    threshold_tokens: int = 24000,
+    keep_last: int = 6,
+) -> tuple[list[LLMMessage], dict[str, Any]]:
+    """Compress the assembled MAIN-agent context before the LLM call.
+
+    Protection rules (facts that must survive compression):
+    * system prompt (trusted instructions)
+    * the ``Evidence so far`` block (structured evidence summaries)
+    * the most recent ``keep_last`` conversation turns
+    Only older conversation turns are offloaded into one summary message.
+    """
+    before_tokens = sum(ModelAdapter.estimate_tokens(m.content) for m in messages)
+    stats: dict[str, Any] = {
+        "compressed": False,
+        "tokens_before": before_tokens,
+        "tokens_after": before_tokens,
+        "compression_ratio": 1.0,
+        "offloaded_turns": 0,
+        "preserved": ["system_prompt", "evidence_block", f"last_{keep_last}_turns"],
+    }
+    if before_tokens <= threshold_tokens or len(messages) <= keep_last + 2:
+        return messages, stats
+
+    system = [m for m in messages if m.role == "system"]
+    tail = messages[-keep_last:]
+    evidence = [m for m in messages if m.role == "user" and m.content.startswith("Evidence so far")]
+    compressible = [m for m in messages if m not in system and m not in tail and m not in evidence]
+    offloaded: list[LLMMessage] = []
+    while compressible:
+        candidate = sum(
+            ModelAdapter.estimate_tokens(m.content) for m in system + evidence + compressible + tail
+        )
+        if candidate <= threshold_tokens:
+            break
+        offloaded.append(compressible.pop(0))
+    summary_text = f"{len(offloaded)} earlier turns offloaded. " + ContextCompressor()._summarize(offloaded)
+    summary = LLMMessage(role="user", content=f"[compressed history] {summary_text}")
+    compressed = system + evidence + ([summary] if offloaded else []) + tail
+    after_tokens = sum(ModelAdapter.estimate_tokens(m.content) for m in compressed)
+    stats.update(
+        {
+            "compressed": True,
+            "tokens_after": after_tokens,
+            "compression_ratio": round(after_tokens / max(before_tokens, 1), 4),
+            "offloaded_turns": len(offloaded),
+        }
+    )
+    return compressed, stats

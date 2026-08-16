@@ -143,6 +143,7 @@ async def run_one_scenario(
 
     # Tool call limit is a per-run budget in evaluation, not a per-process one.
     runtime.registry.call_counts.clear()
+    runtime.reset_model_budget()
     before = _snapshot(runtime)
     started = time.monotonic()
     thread_id = f"eval-{system.name}-{scenario['incident_id']}"

@@ -15,7 +15,7 @@ from aegisops.agents.subagents import (
     validate_subagent_config,
 )
 from aegisops.config.settings import Settings
-from aegisops.llm.base import ModelAdapter
+from aegisops.llm.base import LimitedModelAdapter, ModelAdapter
 from aegisops.llm.fake import FakeLLM
 from aegisops.llm.openai_adapter import OpenAICompatibleAdapter
 from aegisops.mcp.client import MCPToolAdapter
@@ -60,8 +60,10 @@ class TracingToolObserver(ToolObserver):
     def __init__(self, trace_store=None) -> None:
         self.trace_store = trace_store
 
-    async def on_tool_start(self, agent: str, tool_name: str, args: dict[str, Any]) -> None:
-        emit("tool_start", source=agent, tool_name=tool_name)
+    async def on_tool_start(
+        self, agent: str, tool_name: str, args: dict[str, Any], risk_level: int = 0
+    ) -> None:
+        emit("tool_start", source=agent, tool_name=tool_name, risk_level=risk_level)
         emit("tool_args", source=agent, tool_name=tool_name, args=args)
         if self.trace_store is not None:
             self.trace_store.append(
@@ -73,6 +75,7 @@ class TracingToolObserver(ToolObserver):
                     "run_id": current_run_id.get(),
                     "user_id": current_user_id.get(),
                     "arguments": args,
+                    "risk_level": risk_level,
                 }
             )
 
@@ -170,6 +173,7 @@ class AegisRuntime:
         )
         self._real_adapter: OpenAICompatibleAdapter | None = None
         self.created_adapters: list[ModelAdapter] = []
+        self.model_call_counter: dict[str, int] = {"calls": 0}
 
     # ------------------------------------------------------------- scenarios
     def _load_scenario_index(self) -> dict[str, dict[str, Any]]:
@@ -226,11 +230,18 @@ class AegisRuntime:
                 self._real_adapter = OpenAICompatibleAdapter(self.settings)
                 self.created_adapters.append(self._real_adapter)
             self._real_adapter.token_callback = token_sink.get()
-            return self._real_adapter
-        adapter = FakeLLM(scenario=scenario, scenario_index=self.scenario_index)
-        adapter.token_callback = token_sink.get()
-        self.created_adapters.append(adapter)
-        return adapter
+            base: ModelAdapter = self._real_adapter
+        else:
+            base = FakeLLM(scenario=scenario, scenario_index=self.scenario_index)
+            base.token_callback = token_sink.get()
+            self.created_adapters.append(base)
+        return LimitedModelAdapter(
+            base, max_calls=self.settings.model_call_limit, counter=self.model_call_counter
+        )
+
+    def reset_model_budget(self) -> None:
+        """Start a fresh per-run model-call budget (called before each invoke)."""
+        self.model_call_counter["calls"] = 0
 
     # ---------------------------------------------------------------- sandbox
     def _seed_files(self) -> dict[str, bytes]:
@@ -270,6 +281,28 @@ class AegisRuntime:
 
     async def destroy_sandboxes(self) -> None:
         await self.sandbox_manager.destroy_all()
+
+    def record_trace(self, kind: str, **fields: Any) -> None:
+        """Persist one agent/HITL/report timeline record (no-op without a store)."""
+        store = getattr(self.registry.observer, "trace_store", None)
+        if store is None:
+            return
+        store.append(
+            {
+                "kind": kind,
+                "run_id": current_run_id.get(),
+                "thread_id": current_thread_id.get(),
+                "user_id": current_user_id.get(),
+                **fields,
+            }
+        )
+
+    def snapshot_llm_usage(self) -> dict[str, int]:
+        adapters = getattr(self, "created_adapters", [])
+        return {
+            "model_calls": sum(getattr(a, "call_count", 0) for a in adapters),
+            "tokens": sum(getattr(a, "usage_total", 0) for a in adapters),
+        }
 
     @property
     def middleware(self):

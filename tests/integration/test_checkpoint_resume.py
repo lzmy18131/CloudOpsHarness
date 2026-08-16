@@ -45,6 +45,13 @@ async def test_resume_after_process_restart(runtime) -> None:
         config=config,
     )
     assert first["pending_interrupt"]["type"] == "approval"
+    # Evidence that pre-interrupt work is checkpointed and must NOT re-run.
+    plan_before = [(s["id"], s["status"]) for s in first["plan"]]
+    calls_before = {
+        tool: count
+        for tool, count in runtime.registry.call_counts.items()
+        if tool in {"query_logs", "get_recent_deployments", "get_config_diff"}
+    }
     await handle1.aclose()
 
     # Process 2: reopen the same SQLite file and resume from the checkpoint.
@@ -57,4 +64,12 @@ async def test_resume_after_process_restart(runtime) -> None:
     assert final["status"] == "done"
     assert final["executed_actions"][0]["tool_name"] == "rollback_release"
     assert "Incident Report" in final["final_report"]
+    # Plan and completed evidence steps survived the restart untouched.
+    plan_after = [(s["id"], s["status"]) for s in final["plan"]]
+    for step_id, status in plan_before[:8]:
+        assert (step_id, status) in plan_after
+    for tool, count in calls_before.items():
+        assert runtime.registry.call_counts.get(tool, 0) == count, (
+            f"{tool} re-executed after resume (was {count}, now {runtime.registry.call_counts.get(tool, 0)})"
+        )
     await handle2.aclose()

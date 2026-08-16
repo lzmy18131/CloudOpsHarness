@@ -106,6 +106,8 @@ class Settings(BaseSettings):
     # ---- harness limits -----------------------------------------------------
     model_call_limit: int = 60
     tool_call_limit: int = 120
+    max_plan_steps: int = 20
+    max_delegation_depth: int = 2
     context_compression_threshold_tokens: int = 24000
     context_compression_ratio: float = 0.8
     auto_approve_max_risk: int = 1
@@ -116,6 +118,8 @@ class Settings(BaseSettings):
 
     # ---- API ---------------------------------------------------------
     allowed_origins: str = "*"
+
+    pii_redaction: bool = True
 
     # ---- observability ---------------------------------------------------
     tracing_enabled: bool = True

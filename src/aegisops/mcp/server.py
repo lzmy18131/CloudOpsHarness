@@ -96,6 +96,11 @@ def create_mcp_server(provider: OpsProvider | None = None) -> FastMCP:
         return _dump(await provider.verify_service_health(service))
 
     @mcp.tool()
+    async def dry_run_action(tool_name: str, arguments: dict) -> dict:
+        """Preview a production action without executing it (risk L0)."""
+        return _dump(await provider.dry_run_action(tool_name, arguments))
+
+    @mcp.tool()
     async def create_incident_ticket(service: str, title: str, severity: str, description: str) -> dict:
         """Create an incident ticket (low-risk write)."""
         return _dump(await provider.create_incident_ticket(service, title, severity, description))

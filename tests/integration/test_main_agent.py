@@ -156,6 +156,15 @@ async def test_full_approval_flow_end_to_end(runtime) -> None:
         "change-analysis",
         "remediation",
     }
+    # Change agent separates temporal correlation from causal evidence.
+    change_report = final["subagent_reports"]["change-analysis"]
+    assert change_report.get("temporal_correlation") is True
+    assert change_report.get("causal_confidence", 1.0) < 0.6
+    # Evidence is traceable back to tool results; RCA references evidence ids.
+    for item in final["evidence"]:
+        assert item.get("id")
+        assert item.get("raw_ref")
+    assert final["rca"].get("supporting_evidence")
 
 
 @pytest.mark.asyncio

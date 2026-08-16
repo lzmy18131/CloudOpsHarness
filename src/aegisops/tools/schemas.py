@@ -61,6 +61,11 @@ class VerifyServiceHealthArgs(BaseModel):
     service: str
 
 
+class DryRunActionArgs(BaseModel):
+    tool_name: str = Field(description="Action tool to preview")
+    arguments: dict = Field(default_factory=dict, description="Action arguments to preview")
+
+
 class CreateIncidentTicketArgs(BaseModel):
     service: str
     title: str

@@ -33,6 +33,10 @@ def render_incident_report(state: dict[str, Any]) -> str:
     lines.append(f"- **Root cause**: {rca.get('root_cause', scenario.get('root_cause', 'unknown'))}")
     lines.append(f"- **Fault type**: {rca.get('fault_type', scenario.get('fault_type', 'unknown'))}")
     lines.append(f"- **Confidence**: {rca.get('confidence', 0)}")
+    if rca.get("supporting_evidence"):
+        lines.append(f"- **Supporting evidence**: {rca['supporting_evidence']}")
+    if rca.get("contradicting_evidence"):
+        lines.append(f"- **Contradicting evidence**: {rca['contradicting_evidence']}")
     if rca.get("unresolved"):
         lines.append(f"- **Unresolved**: {rca['unresolved']}")
     lines.append("")
@@ -40,6 +44,11 @@ def render_incident_report(state: dict[str, Any]) -> str:
     lines.append("")
     for source, report in reports.items():
         lines.append(f"- **{source}** ({report.get('confidence', 0):.2f}): {report.get('summary', '')}")
+        if source == "change-analysis" and report.get("temporal_correlation") is not None:
+            lines.append(
+                f"  - temporal_correlation={report['temporal_correlation']} "
+                f"causal_confidence={report.get('causal_confidence', 0)}"
+            )
         for signal in report.get("signals", [])[:6]:
             lines.append(f"  - signal: {signal}")
     lines.append("")
@@ -81,7 +90,12 @@ def render_incident_report(state: dict[str, Any]) -> str:
     lines.append("")
     lines.append("## 7. Verification")
     lines.append("")
-    lines.append(f"- {verification.get('summary', verification.get('status', 'not verified'))}")
+    lines.append(
+        f"- resolved={verification.get('resolved', False)} status={verification.get('status', 'not verified')}"
+    )
+    lines.append(f"- {verification.get('summary', 'not verified')}")
+    if verification.get("before_state"):
+        lines.append(f"- before-state: {verification['before_state']}")
     lines.append("")
     lines.append("## 8. Follow-ups")
     lines.append("")

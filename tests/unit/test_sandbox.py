@@ -159,6 +159,7 @@ async def test_docker_backend_builds_hardened_run_command(monkeypatch) -> None:
     assert "--security-opt" in args and "no-new-privileges" in args
     assert "--read-only" in args
     assert "--pids-limit" in args
+    assert "-v" not in args  # no host volume mounts
     await backend.execute('python -c "print(1)"')
     assert captured[1][2] == "sh"
     assert 'cd /workspace && python -c "print(1)"' in captured[1][4]
