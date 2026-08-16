@@ -98,7 +98,7 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 **结果全部来自真实运行 artifact**（`eval_results/*/summary.json`），禁止伪造。离线确定性评测（FakeLLM，n=110）与真实 LLM 评测（需 key）使用同一 harness。
 
 <!-- EVAL_RESULTS -->
-当前真实 artifact：`eval_results/offline_20260816T045911Z/summary.json`
+当前真实 artifact：`eval_results/offline_20260816T060613Z/summary.json`
 （tag `offline-fake-llm-n110`，n=110 × 5 systems，2026-08-16 UTC）。
 
 | 指标 | Single | Multi | Multi 无隔离 | **Harness** | Harness 无恢复 |
@@ -111,19 +111,19 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 | Unsafe Execution Count | 10 | 10 | 10 | **0** | 0 |
 | HITL Recall/Compliance | 0.000 | 0.000 | 0.000 | **1.000** | 1.000 |
 | Recovery Success（10 个沙箱故障场景） | 0/10 | 10/10 | 10/10 | **10/10** | 0/10 |
-| Recovery Latency ms (mean/median/P95) | - | 159.3/156.0/172.0 | 159.3/156.0/172.0 | 159.5/156.5/172.0 | - |
+| Recovery Latency ms (mean/median/P95) | - | 171.7/172.0/187.0 | 170.3/172.0/187.0 | 173.6/172.0/188.0 | - |
 | Resume Success | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | Mean Main-Context Tokens | n/a | 1326.9 | 1372.8 | 1326.9 | 1326.9 |
 | Mean Tool Calls | 5.41 | 27.46 | 27.46 | 27.46 | 27.46 |
 | Mean LLM Calls | 6.41 | 43.46 | 43.46 | 43.46 | 43.46 |
-| Mean Token Cost | 4803.4 | 39283.3 | 39337.0 | 39280.9 | 39274.3 |
-| Mean Latency (ms) | 56.0 | 115.6 | 107.8 | 110.2 | 95.9 |
+| Mean Token Cost | 4803.4 | 39278.2 | 39335.2 | 39286.2 | 39275.4 |
+| Mean Latency (ms) | 60.1 | 127.8 | 124.4 | 126.1 | 110.2 |
 
 配对统计（同一 110 个 incident 配对运行）：
 - Unsafe action：Single/Multi vs Harness 的 McNemar p=0.002（10 个 discordant 对全部在无 HITL 侧）。
 - Recovery：Harness vs Harness-no-recovery p=0.002（0/10 vs 10/10）。
 - Context isolation：关闭隔离后 main-context +45.9 token（95% CI [44.9, 46.9]，artifact 可复算），总 token +53.7；绝对值受截断策略限制，不夸大。
-- Single vs Harness：token −34477.5（95% CI 见 artifact），latency −54.3 ms。
+- Single vs Harness：token −34482.8（95% CI [−34790.9, −34185.3]），latency −66.1 ms（95% CI [−72.0, −61.0]）。
 - Bucket（Single vs Harness）：simple n=20 / multi_source n=10 / multi_hop n=20 / complex n=50 / failure_injection n=20；FakeLLM 下 RCA 全部到上限，有效差异是成本与 unsafe 护栏。
 
 诚实结论：FakeLLM 是确定性控制器，**本评测验证的是 workflow correctness、安全护栏、恢复与 harness overhead，不是真实模型推理智能**。真实 LLM 结果须用 `scripts/run_real_eval.py` 在独立目录生成；本仓库不含伪造数字。
@@ -155,7 +155,7 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 | Dynamic skill 安全门 | `SkillInstaller` | `test_skills_memory.py`（7 项安全测试） |
 | Dry run before HITL | `dry_run_action` L0 + `ActionRequest.dry_run` | `test_tools.py`, executor 代码 |
 | Remediation 后 verify + resolved | `build_verify_node` before/after + resolved | `test_main_agent.py`（最终状态） |
-| Evaluation 数字可复算 | raw per-run 明细 | `eval_results/offline_20260816T045911Z/summary.json` |
+| Evaluation 数字可复算 | raw per-run 明细 | `eval_results/offline_20260816T060613Z/summary.json` |
 
 ## 10. Quick Start
 

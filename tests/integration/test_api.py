@@ -142,9 +142,8 @@ def test_missing_info_supplement_via_api(tmp_path) -> None:
         )
         assert second.status_code == 200
         assert second.json()["interrupt"]["type"] == "approval"
-        assert (
-            "payment-service" in client.get(f"/api/threads/{thread_id}/state").json()["plan"][0]["id"] or True
-        )
+        state_payload = client.get(f"/api/threads/{thread_id}/state", params={"user_id": "demo-user"}).json()
+        assert state_payload["plan"] and len(state_payload["plan"]) > 0
     finally:
         client.__exit__(None, None, None)
 

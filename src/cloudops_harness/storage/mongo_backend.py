@@ -35,8 +35,9 @@ class MongoThreadStorage(ThreadStorage):
             )
         return result
 
-    async def get_thread(self, thread_id: str) -> dict[str, Any] | None:
-        record = await self.collection.find_one({"thread_id": thread_id})
+    async def get_thread(self, thread_id: str, user_id: str | None = None) -> dict[str, Any] | None:
+        query = {"thread_id": thread_id, "user_id": user_id} if user_id else {"thread_id": thread_id}
+        record = await self.collection.find_one(query)
         if record is None:
             return None
         record.pop("_id", None)

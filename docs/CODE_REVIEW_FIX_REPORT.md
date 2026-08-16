@@ -1,4 +1,4 @@
-# CODE_REVIEW_FIX_REPORT (v0.2.1-final)
+# CODE_REVIEW_FIX_REPORT (v0.2.2-final)
 
 ## 1. Project Rename
 
@@ -84,7 +84,7 @@
 
 ## 10. Evaluation
 
-- 新 artifact: `eval_results/offline_20260816T045911Z/summary.json`
+- 新 artifact: `eval_results/offline_20260816T060613Z/summary.json`
 - n=110 × 5 systems；系统与指标见 EVALUATION.md / BUILD_REPORT.md。
 
 ## 11. Demo
@@ -93,6 +93,14 @@
 - B: PASS（DB pool → sandbox → RCA）
 - C: PASS（reject → no action → safe alternative）
 - D: PASS（sandbox crash → rebuild 同 proxy → HITL → SQLite reopen → resume → finish）
+
+## 12b. v0.2.2 final bug fixes
+
+- HITL exact action binding (no fallback approval): `agents/hitl.py` + `tests/unit/test_hitl.py`.
+- Checkpoint user namespace + scoped storage: `api/chat.py`, `storage/file_backend.py` + tests.
+- Model budget ContextVar: `llm/budget.py` + tests.
+- Docker upload parent-dir creation: `sandbox/docker_backend.py` + real smoke nested path.
+- ToolCallLimitMiddleware run-budget warning; MIT LICENSE.
 
 ## 12. Remaining Limitations
 

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # ---- application -------------------------------------------------
     app_name: str = "CloudOps Harness"
-    app_version: str = "0.2.1"
+    app_version: str = "0.2.2"
     environment: Literal["dev", "test", "prod"] = "dev"
     host: str = "127.0.0.1"
     port: int = 8090

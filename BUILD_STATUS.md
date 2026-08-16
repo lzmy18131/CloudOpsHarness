@@ -20,7 +20,7 @@
 
 - Tests：**collected 125 · passed 124 · failed 0 · skipped 1**（skipped = real-Docker smoke，本机 daemon 不可用）
 - ruff check ✅ · ruff format --check ✅
-- Evaluation：`eval_results/offline_20260816T045911Z/summary.json`（n=110 × 5 systems）
+- Evaluation：`eval_results/offline_20260816T060613Z/summary.json`（n=110 × 5 systems）
 - Demos：A/B/C/D PASS
 - uvicorn smoke：health（CloudOps Harness v0.2.1）/ SSE / resume / traces PASS
 - 真实 LLM eval：NOT COMPLETED（无 key；脚本就绪）

@@ -134,6 +134,13 @@ class DockerSandboxBackend(SandboxBackend):
     async def upload(self, path: str, content: bytes) -> None:
         if path.startswith("/") or ".." in Path(path).parts:
             raise ValueError(f"invalid container path: {path!r}")
+        parent = str(Path(path).parent).replace("\\", "/")
+        if parent and parent != ".":
+            code, _, stderr = await self._run(
+                "exec", self.container_name, "mkdir", "-p", f"/workspace/{parent}"
+            )
+            if code != 0:
+                raise RuntimeError(f"docker mkdir failed: {stderr}")
         host_dir = Path.home() / ".cloudops_harness-docker-tmp"
         host_dir.mkdir(parents=True, exist_ok=True)
         host_file = host_dir / f"{uuid.uuid4().hex}.tmp"

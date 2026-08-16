@@ -16,6 +16,7 @@ from cloudops_harness.agents.subagents import (
 )
 from cloudops_harness.config.settings import Settings
 from cloudops_harness.llm.base import LimitedModelAdapter, ModelAdapter
+from cloudops_harness.llm.budget import ModelCallBudget, start_model_budget
 from cloudops_harness.llm.fake import FakeLLM
 from cloudops_harness.llm.openai_adapter import OpenAICompatibleAdapter
 from cloudops_harness.mcp.client import MCPToolAdapter
@@ -174,7 +175,6 @@ class CloudOpsRuntime:
         )
         self._real_adapter: OpenAICompatibleAdapter | None = None
         self.created_adapters: list[ModelAdapter] = []
-        self.model_call_counter: dict[str, int] = {"calls": 0}
 
     # ------------------------------------------------------------- scenarios
     def _load_scenario_index(self) -> dict[str, dict[str, Any]]:
@@ -236,13 +236,11 @@ class CloudOpsRuntime:
             base = FakeLLM(scenario=scenario, scenario_index=self.scenario_index)
             base.token_callback = token_sink.get()
             self.created_adapters.append(base)
-        return LimitedModelAdapter(
-            base, max_calls=self.settings.model_call_limit, counter=self.model_call_counter
-        )
+        return LimitedModelAdapter(base, max_calls=self.settings.model_call_limit)
 
-    def reset_model_budget(self) -> None:
-        """Start a fresh per-run model-call budget (called before each invoke)."""
-        self.model_call_counter["calls"] = 0
+    def start_model_budget(self, run_id: str) -> ModelCallBudget:
+        """Start a run-scoped model-call budget for one graph invocation."""
+        return start_model_budget(run_id, self.settings.model_call_limit)
 
     def start_tool_budget(self, run_id: str) -> ToolCallBudget:
         """Start a run-scoped tool-call budget for one graph invocation."""

@@ -1,10 +1,18 @@
-# CloudOps Harness Build Report (v0.2.1 Final Resume Release)
+# CloudOps Harness Build Report (v0.2.2 Final Bug Fix Release)
 
 - 项目根目录：本地仓库（GitHub: lzmy18131/CloudOpsHarness）
 - Python 3.11.15（项目 venv）
 - 依赖全部固定（langgraph 1.2.11 / fastapi 0.141.1 / pydantic 2.13.4 / fastmcp 3.4.7 / openai 2.54.0 …）
 - `ruff check src tests scripts` ✅ · `ruff format --check` ✅
-- Tests：**collected 125 · passed 124 · failed 0 · skipped 1**（skipped = real-Docker smoke，本机 daemon 不可用）
+- Tests：**collected 133 · passed 132 · failed 0 · skipped 1**（skipped = real-Docker smoke，本机 daemon 不可用）
+
+## v0.2.2 Final Bug Fixes (on top of v0.2.1)
+
+- HITL multi-action exact `action_id` binding; no decision => reject (unit tests cover multi-action, nonexistent id, ambiguous legacy).
+- Checkpoint `user_id:thread_id` namespace; storage `get_thread(thread_id, user_id=...)`; ambiguity test + namespace isolation test.
+- Model-call budget ContextVar (`llm/budget.py`) concurrency/overflow tests.
+- Docker `upload()` creates parent dirs before `docker cp`.
+- ToolCallLimitMiddleware uses run budget; MIT LICENSE added.
 
 ## v0.2.1 Blockers Fixed
 
@@ -21,7 +29,7 @@
 
 ## Evaluation (真实运行)
 
-- Artifact：`eval_results/offline_20260816T045911Z/summary.json`（n=110 × 5 systems，FakeLLM offline）
+- Artifact：`eval_results/offline_20260816T060613Z/summary.json`（n=110 × 5 systems，FakeLLM offline）
 - Real LLM：**NOT COMPLETED**（无 API key；`scripts/run_real_eval.py` 就绪）
 
 | | Single | Multi | Multi no-iso | Harness | Harness no-rec |

@@ -10,6 +10,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
+from cloudops_harness.llm.budget import ModelCallBudget, get_model_budget, start_model_budget
 from cloudops_harness.llm.models import AssistantTurn, LLMMessage
 
 
@@ -43,16 +44,17 @@ class ModelAdapter(ABC):
 class LimitedModelAdapter(ModelAdapter):
     """Enforces a hard per-run model-call budget around any adapter.
 
-    Attributes delegate to the wrapped adapter so FakeLLM introspection
-    (``calls``), usage accounting and token callbacks keep working.
+    The budget lives in a ContextVar (one per graph invocation / request), so
+    concurrent runs never share or reset each other's counters. Attributes
+    delegate to the wrapped adapter so FakeLLM introspection (``calls``),
+    usage accounting and token callbacks keep working.
     """
 
     name = "limited-model-adapter"
 
-    def __init__(self, adapter: ModelAdapter, *, max_calls: int, counter: dict[str, int]) -> None:
+    def __init__(self, adapter: ModelAdapter, *, max_calls: int) -> None:
         self._adapter = adapter
         self.max_calls = max_calls
-        self.counter = counter
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self._adapter, item)
@@ -63,10 +65,12 @@ class LimitedModelAdapter(ModelAdapter):
         tools: list[dict[str, Any]] | None = None,
         response_format: dict[str, Any] | None = None,
     ) -> AssistantTurn:
-        used = self.counter.get("calls", 0)
-        if used >= self.max_calls:
+        budget: ModelCallBudget | None = get_model_budget()
+        if budget is None:
+            budget = start_model_budget("implicit", self.max_calls)
+        if not budget.record():
             raise ModelCallLimitError(
-                f"model call limit exceeded ({self.max_calls}); graceful degradation engaged"
+                f"model call limit exceeded for run {budget.run_id} "
+                f"({budget.max_calls}); graceful degradation engaged"
             )
-        self.counter["calls"] = used + 1
         return await self._adapter.generate(messages, tools=tools, response_format=response_format)

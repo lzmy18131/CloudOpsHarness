@@ -14,6 +14,7 @@ from langgraph.types import interrupt
 
 from cloudops_harness.agents.context import assemble_main_messages, compress_main_context
 from cloudops_harness.agents.events import emit
+from cloudops_harness.agents.hitl import assign_action_ids, resolve_decisions
 from cloudops_harness.agents.models import (
     ActionRecord,
     ActionRequest,
@@ -431,7 +432,7 @@ def build_executor_node(runtime: CloudOpsRuntime):
                 "diagnostics": remediation_report.get("diagnostics", ["verify_service_health"]),
                 "risk_assessment": remediation_report.get("summary", ""),
             }
-        proposed = plan.get("proposed_actions", [])
+        proposed = assign_action_ids(plan.get("proposed_actions", []))
         if not proposed:
             return {"status": "no_actions", "pending_interrupt": None, "errors": []}
         decisions = [Decision.model_validate(d) for d in state.get("decisions", [])]
@@ -487,6 +488,7 @@ def build_executor_node(runtime: CloudOpsRuntime):
                     }
                 requests.append(
                     ActionRequest(
+                        action_id=str(action.get("action_id", "")),
                         tool_name=str(action.get("tool_name")),
                         arguments=arguments,
                         risk_level=int(action.get("risk_level", 0)),
@@ -516,13 +518,21 @@ def build_executor_node(runtime: CloudOpsRuntime):
 
         executed: list[dict[str, Any]] = []
         rejected: list[dict[str, Any]] = []
-        decision_by_tool = {d.tool_name: d for d in decisions if d.tool_name}
-        fallback_decision = (
-            decisions[0] if decisions else Decision(type="approve", comment="auto-approved by policy")
-        )
+        resolved = resolve_decisions(proposed, decisions)
+        auto_approve = not requires_approval and not decisions
         for action in proposed:
             action_model = ProposedAction.model_validate(action)
-            decision = decision_by_tool.get(action_model.tool_name) or fallback_decision
+            decision = (
+                Decision(type="approve", comment="auto-approved by policy")
+                if auto_approve
+                else resolved.get(
+                    action_model.action_id,
+                    resolved.get(
+                        action_model.tool_name,
+                        Decision(type="reject", comment="no explicit approval for this action"),
+                    ),
+                )
+            )
             record = ActionRecord(
                 tool_name=action_model.tool_name,
                 arguments=action_model.arguments,

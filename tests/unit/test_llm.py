@@ -182,3 +182,35 @@ async def test_generate_structured_accepts_extra_text_around_json() -> None:
         llm, [LLMMessage(role="user", content="query")], schema_name="TinyModel", output_model=TinyModel
     )
     assert result.answer == "ok"
+
+
+@pytest.mark.asyncio
+async def test_model_budget_is_concurrent_run_scoped() -> None:
+    import asyncio
+
+    from cloudops_harness.llm.base import LimitedModelAdapter
+    from cloudops_harness.llm.budget import get_model_budget, start_model_budget
+
+    async def run(name: str, calls: int) -> int:
+        start_model_budget(f"run-{name}", max_calls=120)
+        adapter = LimitedModelAdapter(FakeLLM(default_content="ok"), max_calls=120)
+        for _ in range(calls):
+            await adapter.generate([LLMMessage(role="user", content="hi")])
+        return get_model_budget().calls
+
+    results = await asyncio.gather(run("a", 30), run("b", 25))
+    assert results == [30, 25]
+    assert 30 + 25 > 40  # a shared resetable counter would have interfered
+
+
+@pytest.mark.asyncio
+async def test_model_budget_overflow_raises_gracefully() -> None:
+    from cloudops_harness.llm.base import LimitedModelAdapter, ModelCallLimitError
+    from cloudops_harness.llm.budget import start_model_budget
+
+    start_model_budget("overflow-model-run", max_calls=2)
+    adapter = LimitedModelAdapter(FakeLLM(default_content="ok"), max_calls=2)
+    await adapter.generate([LLMMessage(role="user", content="1")])
+    await adapter.generate([LLMMessage(role="user", content="2")])
+    with pytest.raises(ModelCallLimitError):
+        await adapter.generate([LLMMessage(role="user", content="3")])

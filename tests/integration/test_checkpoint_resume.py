@@ -73,3 +73,26 @@ async def test_resume_after_process_restart(runtime) -> None:
             f"{tool} re-executed after resume (was {count}, now {runtime.registry.global_telemetry.get(tool, 0)})"
         )
     await handle2.aclose()
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_namespace_isolates_users_with_same_thread_id(runtime) -> None:
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from cloudops_harness.api.chat import _new_config
+
+    graph = runtime.build_graph(checkpointer=InMemorySaver())
+    alice_cfg = _new_config("incident-001", "alice")
+    bob_cfg = _new_config("incident-001", "bob")
+    alice_state = await graph.ainvoke(
+        {
+            "messages": [{"role": "user", "content": "帮我查一下故障"}],
+            "user_id": "alice",
+            "thread_id": "incident-001",
+            "run_id": "r1",
+        },
+        config=alice_cfg,
+    )
+    assert alice_state.get("pending_interrupt", {}).get("type") == "missing_info"
+    bob_snapshot = await graph.aget_state(bob_cfg)
+    assert not bob_snapshot.values  # Bob has no access to Alice's checkpoint

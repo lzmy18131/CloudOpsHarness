@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.2 — Final Bug Fix Release (2026-08-16)
+
+- HITL multi-action approval now requires exact `action_id` binding; no explicit decision => reject (no `decisions[0]` fallback approval).
+- LangGraph checkpoint config namespaced as `user_id:thread_id`; storage `get_thread(thread_id, user_id=...)` scopes lookups and refuses ambiguous cross-user collisions.
+- Model-call budget moved from a shared Runtime counter to a ContextVar-backed `ModelCallBudget` (concurrent run-scoped, hard stop preserved).
+- DockerSandboxBackend.upload creates parent directories (`mkdir -p`) before `docker cp`, so nested seed/skill paths work on a real daemon.
+- ToolCallLimitMiddleware now reports the run-scoped budget instead of process-global telemetry.
+- Added MIT LICENSE.
+
 ## v0.2.1 — Final Resume Release (2026-08-16)
 
 - Project renamed from AegisOps to CloudOps Harness (package `cloudops_harness`, env prefix `CLOUDOPS_`, legacy import shim kept).

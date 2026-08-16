@@ -23,9 +23,11 @@ async def traces(
 
 
 @router.get("/threads/{thread_id}/state")
-async def thread_state(thread_id: str, request: Request) -> dict[str, Any]:
+async def thread_state(thread_id: str, request: Request, user_id: str = "anonymous") -> dict[str, Any]:
     """Expose checkpointed graph state for debugging / observability."""
-    snapshot = await request.app.state.graph.aget_state({"configurable": {"thread_id": thread_id}})
+    snapshot = await request.app.state.graph.aget_state(
+        {"configurable": {"thread_id": f"{user_id}:{thread_id}"}}
+    )
     values = snapshot.values or {}
     return {
         "thread_id": thread_id,

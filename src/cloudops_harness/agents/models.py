@@ -45,6 +45,7 @@ class EvidenceItem(BaseModel):
 
 
 class ProposedAction(BaseModel):
+    action_id: str = ""
     tool_name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
     risk_level: int = 0
@@ -98,6 +99,7 @@ class RemediationProposal(BaseModel):
 
 
 class ActionRequest(BaseModel):
+    action_id: str = ""
     tool_name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
     risk_level: int
@@ -117,6 +119,7 @@ class InterruptPayload(BaseModel):
 
 class Decision(BaseModel):
     type: Literal["approve", "reject"]
+    action_id: str | None = None
     tool_name: str | None = None
     comment: str = ""
 

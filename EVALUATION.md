@@ -48,7 +48,7 @@ mean_delegation_accuracy`。
 
 ## 5. Current results（真实运行，2026-08-16 UTC）
 
-Artifact: `eval_results/offline_20260816T045911Z/summary.json`
+Artifact: `eval_results/offline_20260816T060613Z/summary.json`
 （tag `offline-fake-llm-n110`，n=110 × 5 systems）。
 
 | 指标 | Single | Multi | Multi no-iso | Harness | Harness no-rec |
@@ -61,7 +61,7 @@ Artifact: `eval_results/offline_20260816T045911Z/summary.json`
 | Unsafe executions | 10 | 10 | 10 | 0 | 0 |
 | HITL recall/compliance | 0.000 | 0.000 | 0.000 | 1.000 | 1.000 |
 | Recovery success | 0.000 | 1.000 | 1.000 | 1.000 | 0.000 |
-| Recovery latency mean/median/P95 ms | - | 159.3/156.0/172.0 | 159.3/156.0/172.0 | 159.5/156.5/172.0 | - |
+| Recovery latency mean/median/P95 ms | - | 171.7/172.0/187.0 | 170.3/172.0/187.0 | 173.6/172.0/188.0 | - |
 | Remediation verification | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
 | Remediation resolution | 0.000 | 0.091 | 0.091 | 0.091 | 0.091 |
 | Resume success | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
@@ -69,8 +69,8 @@ Artifact: `eval_results/offline_20260816T045911Z/summary.json`
 | Unnecessary tool rate | 0.000 | 0.420 | 0.420 | 0.420 | 0.420 |
 | Mean tool calls | 5.41 | 27.46 | 27.46 | 27.46 | 27.46 |
 | Mean LLM calls | 6.41 | 43.45 | 43.45 | 43.45 | 43.45 |
-| Mean token cost | 4803.4 | 39283.3 | 39337.0 | 39280.9 | 39274.3 |
-| Mean latency ms | 56.0 | 115.6 | 107.8 | 110.2 | 95.9 |
+| Mean token cost | 4803.4 | 39278.2 | 39335.2 | 39286.2 | 39275.4 |
+| Mean latency ms | 60.1 | 127.8 | 124.4 | 126.1 | 110.2 |
 
 ### 5.1 Key paired conclusions
 
@@ -80,8 +80,8 @@ Artifact: `eval_results/offline_20260816T045911Z/summary.json`
 - Isolation ablation：no-isolation 比 isolation main-context +45.94 token
   （95% CI [+45.06, +46.84]）、总 token +53.67（CI [+50.16, +57.09]）、
   latency +7.8 ms（CI [+3.0, +12.42]）。
-- Single vs Harness：token −34477.5（CI [−34783.4, −34179.9]），
-  latency −54.26 ms（CI [−58.45, −50.27]）。
+- Single vs Harness：token −34482.8（CI [−34790.9, −34185.3]），
+  latency −66.07 ms（CI [−71.97, −61.04]）。
 - 分难度 bucket（Single vs Harness，FakeLLM）：
   - simple n=20：token −35049.4，latency −57.8ms
   - multi_source n=10：token −37477.3，latency −56.2ms

@@ -67,8 +67,14 @@ def _source_name(node: str) -> str:
     return "main"
 
 
-def _new_config(thread_id: str) -> dict[str, Any]:
-    return {"configurable": {"thread_id": thread_id}}
+def _new_config(thread_id: str, user_id: str = "anonymous") -> dict[str, Any]:
+    """LangGraph checkpoint config namespaced per user + thread.
+
+    LangGraph 1.x treats ``checkpoint_ns`` as a subgraph namespace, so the
+    user scope is encoded into the checkpoint ``thread_id`` itself. The
+    user-facing thread_id remains unchanged in API responses/history.
+    """
+    return {"configurable": {"thread_id": f"{user_id}:{thread_id}"}}
 
 
 async def _run_with_middleware(request: Request, ctx: RunContext, invoke):
@@ -121,7 +127,7 @@ async def chat(request_body: ChatRequest, request: Request) -> dict[str, Any]:
     current_user_id.set(request_body.user_id)
     current_thread_id.set(thread_id)
     current_run_id.set(run_id)
-    _runtime(request).reset_model_budget()
+    _runtime(request).start_model_budget(run_id)
     _runtime(request).start_tool_budget(run_id)
 
     async def invoke():
@@ -132,7 +138,7 @@ async def chat(request_body: ChatRequest, request: Request) -> dict[str, Any]:
                 "thread_id": thread_id,
                 "run_id": run_id,
             },
-            config=_new_config(thread_id),
+            config=_new_config(thread_id, request_body.user_id),
         )
 
     result = await _run_with_middleware(request, ctx, invoke)
@@ -163,7 +169,7 @@ async def chat_stream(request_body: ChatRequest, request: Request) -> StreamingR
         current_user_id.set(user_id)
         current_thread_id.set(thread_id)
         current_run_id.set(run_id)
-        runtime.reset_model_budget()
+        runtime.start_model_budget(run_id)
         runtime.start_tool_budget(run_id)
         stack = runtime.middleware
         token_sink.set(lambda event: emit(event.pop("type"), **event))
@@ -177,7 +183,7 @@ async def chat_stream(request_body: ChatRequest, request: Request) -> StreamingR
                     "thread_id": thread_id,
                     "run_id": run_id,
                 },
-                config=_new_config(thread_id),
+                config=_new_config(thread_id, user_id),
                 stream_mode=["messages", "custom"],
             ):
                 if isinstance(chunk, tuple) and len(chunk) == 2:
@@ -198,7 +204,7 @@ async def chat_stream(request_body: ChatRequest, request: Request) -> StreamingR
                 elif isinstance(chunk, dict) and "type" in chunk:
                     yield _sse(chunk)
 
-            snapshot = await graph.aget_state(_new_config(thread_id))
+            snapshot = await graph.aget_state(_new_config(thread_id, user_id))
             values = snapshot.values or {}
             pending = values.get("pending_interrupt")
             if pending:
@@ -255,13 +261,16 @@ async def resume_chat(thread_id: str, request_body: ResumeRequest, request: Requ
     runtime = _runtime(request)
     graph = _graph(request)
     storage = _storage(request)
-    record = await storage.get_thread(thread_id)
+    owner = request_body.user_id
+    try:
+        record = await storage.get_thread(thread_id, user_id=owner)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if record is None:
         raise HTTPException(status_code=404, detail="thread not found")
-    owner = record.get("user_id", "anonymous")
-    if request_body.user_id and request_body.user_id != owner:
+    if owner and record.get("user_id") != owner:
         raise HTTPException(status_code=403, detail="thread does not belong to this user")
-    user_id = owner
+    user_id = record.get("user_id", "anonymous")
     payload: dict[str, Any] = {}
     if request_body.supplement:
         payload["supplement"] = request_body.supplement
@@ -280,11 +289,11 @@ async def resume_chat(thread_id: str, request_body: ResumeRequest, request: Requ
     current_user_id.set(user_id)
     current_thread_id.set(thread_id)
     current_run_id.set(ctx.run_id)
-    runtime.reset_model_budget()
+    runtime.start_model_budget(ctx.run_id)
     runtime.start_tool_budget(f"resume-{thread_id}")
 
     async def invoke():
-        return await graph.ainvoke(Command(resume=payload), config=_new_config(thread_id))
+        return await graph.ainvoke(Command(resume=payload), config=_new_config(thread_id, user_id))
 
     result = await _run_with_middleware(request, ctx, invoke)
     outcome = await _record_outcome(request, result, ctx)

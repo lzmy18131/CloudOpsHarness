@@ -52,14 +52,22 @@ class FileThreadStorage(ThreadStorage):
             )
         return sorted(threads, key=lambda t: t["updated_at"], reverse=True)
 
-    async def get_thread(self, thread_id: str) -> dict[str, Any] | None:
+    async def get_thread(self, thread_id: str, user_id: str | None = None) -> dict[str, Any] | None:
+        """Get one thread. With user_id the lookup is namespaced; without it a
+        cross-user collision raises ValueError (never silently picks a winner)."""
+        if user_id is not None:
+            path = self._path(user_id, thread_id)
+            return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+        matches = []
         for user_dir in self.root.glob("*"):
             if not user_dir.is_dir():
                 continue
             path = user_dir / f"{_safe(thread_id)}.json"
             if path.exists():
-                return json.loads(path.read_text(encoding="utf-8"))
-        return None
+                matches.append(json.loads(path.read_text(encoding="utf-8")))
+        if len(matches) > 1:
+            raise ValueError(f"thread_id {thread_id!r} is ambiguous across users; supply user_id")
+        return matches[0] if matches else None
 
     async def append_event(self, thread_id: str, user_id: str, event: dict[str, Any]) -> None:
         async with self._lock:

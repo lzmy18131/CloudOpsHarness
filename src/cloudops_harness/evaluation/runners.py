@@ -143,7 +143,7 @@ async def run_one_scenario(
 
     run_id = f"eval-{system.name}-{scenario['incident_id']}"
     runtime.start_tool_budget(run_id)
-    runtime.reset_model_budget()
+    runtime.start_model_budget(run_id)
     before = _snapshot(runtime)
     started = time.monotonic()
     thread_id = f"eval-{system.name}-{scenario['incident_id']}"

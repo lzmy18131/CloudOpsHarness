@@ -47,3 +47,16 @@ async def test_delete_thread(storage) -> None:
     assert await storage.delete_thread("t1") is True
     assert await storage.get_thread("t1") is None
     assert await storage.delete_thread("missing") is False
+
+
+@pytest.mark.asyncio
+async def test_same_thread_id_across_users_is_not_silently_merged(storage) -> None:
+    await storage.append_event(
+        "same-thread", "alice", {"kind": "message", "role": "user", "content": "alice"}
+    )
+    await storage.append_event("same-thread", "bob", {"kind": "message", "role": "user", "content": "bob"})
+    alice = await storage.get_thread("same-thread", user_id="alice")
+    bob = await storage.get_thread("same-thread", user_id="bob")
+    assert alice["user_id"] == "alice" and bob["user_id"] == "bob"
+    with pytest.raises(ValueError, match="ambiguous"):
+        await storage.get_thread("same-thread")
