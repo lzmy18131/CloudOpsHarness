@@ -1,0 +1,13 @@
+{
+  "path": "D:\\AegisOps\\fixtures\\incidents\\scenarios.json",
+  "sha256": "e894821d5bc08ee2a6010cf44e3aac7575641f78ff5c00e0e12618c17feea276",
+  "scenario_count": 5,
+  "scenario_ids": [
+    "INC-BAD-DE-000",
+    "INC-BAD-DE-001",
+    "INC-BAD-DE-002",
+    "INC-BAD-DE-003",
+    "INC-BAD-DE-004"
+  ],
+  "split": null
+}

@@ -1,0 +1,19 @@
+{
+  "freeze_commit": "134fd844b01de9f80d75b30bba64934cfcb766d9",
+  "freeze_timestamp": "2026-08-21T09:44:11.855561Z",
+  "model": "deepseek-v4-flash",
+  "base_url": "https://api.deepseek.com",
+  "temperature": 0.0,
+  "max_tokens": null,
+  "retry_count": 2,
+  "timeout_seconds": 120.0,
+  "dataset_sha256": "e894821d5bc08ee2a6010cf44e3aac7575641f78ff5c00e0e12618c17feea276",
+  "test_manifest_sha256": "cd2c9144040f4070b2709129c4188293eaa1262e6ae43776f4d2e7bf801051d3",
+  "metric_version": "2.0",
+  "prompt_hash": "7b07de3640d4a3f4e7cdee3845a937e7b91e84c2076f687d6d3f4e8f2aefcae4",
+  "evaluator_hash": "e6c985925ec9e6798d38d48f30931daf40e12bb6f0dd6f5b468a0bed352eca0e",
+  "model_call_limit": 60,
+  "tool_call_limit": 120,
+  "max_plan_steps": 20,
+  "subagent_max_llm_calls_per_run": 4
+}
