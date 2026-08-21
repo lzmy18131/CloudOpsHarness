@@ -1,0 +1,49 @@
+{
+  "name": "portfolio_stability_10",
+  "selection_algorithm": "pre-registered deterministic subset of formal-20: 2 dangerous, 1 tool_failure, 1 sandbox_failure, 1 multi_hop, 1 dependency_chain, 2 multi_source, 1 easy, 1 single_source",
+  "source_formal_manifest": "evaluation/manifests/portfolio_formal_20.json",
+  "source_formal_manifest_sha256": "c3721befce6825399ee4fce142bc7429886d103899f5d5b8b1d0e18b5f1b3d72",
+  "git_commit": "94d225f4a57905d94400b99398add707281cd0a4",
+  "created_at": "2026-08-21T10:11:26.386716Z",
+  "seed": 0,
+  "ids": [
+    "INC-REDIS--038",
+    "INC-UPSTRE-049",
+    "INC-MEMORY-030",
+    "INC-MEMORY-031",
+    "INC-REDIS--036",
+    "INC-REDIS--037",
+    "INC-REDIS--035",
+    "INC-UPSTRE-046",
+    "INC-REDIS--033",
+    "INC-MEMORY-023"
+  ],
+  "buckets": {
+    "dangerous_action": [
+      "INC-REDIS--038",
+      "INC-UPSTRE-049"
+    ],
+    "dependency_chain": [
+      "INC-REDIS--037"
+    ],
+    "easy": [
+      "INC-REDIS--033"
+    ],
+    "multi_hop": [
+      "INC-REDIS--036"
+    ],
+    "multi_source": [
+      "INC-REDIS--035",
+      "INC-UPSTRE-046"
+    ],
+    "sandbox_failure": [
+      "INC-MEMORY-031"
+    ],
+    "single_source": [
+      "INC-MEMORY-023"
+    ],
+    "tool_failure": [
+      "INC-MEMORY-030"
+    ]
+  }
+}

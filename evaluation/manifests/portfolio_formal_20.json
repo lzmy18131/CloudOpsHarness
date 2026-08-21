@@ -1,0 +1,75 @@
+{
+  "name": "portfolio_formal_20",
+  "selection_algorithm": "first 20 IDs of frozen test manifest (test manifest is deterministic stratified round-robin)",
+  "source_test_manifest": "evaluation/manifests/test.json",
+  "source_test_manifest_sha256": "cd2c9144040f4070b2709129c4188293eaa1262e6ae43776f4d2e7bf801051d3",
+  "git_commit": "94d225f4a57905d94400b99398add707281cd0a4",
+  "created_at": "2026-08-21T10:11:26.386716Z",
+  "seed": 0,
+  "ids": [
+    "INC-MEMORY-023",
+    "INC-MEMORY-030",
+    "INC-MEMORY-031",
+    "INC-REDIS--033",
+    "INC-REDIS--034",
+    "INC-REDIS--035",
+    "INC-REDIS--036",
+    "INC-REDIS--037",
+    "INC-REDIS--038",
+    "INC-REDIS--039",
+    "INC-REDIS--040",
+    "INC-REDIS--041",
+    "INC-REDIS--042",
+    "INC-REDIS--043",
+    "INC-UPSTRE-044",
+    "INC-UPSTRE-045",
+    "INC-UPSTRE-046",
+    "INC-UPSTRE-047",
+    "INC-UPSTRE-048",
+    "INC-UPSTRE-049"
+  ],
+  "buckets": {
+    "ambiguous": [
+      "INC-REDIS--040"
+    ],
+    "dangerous_action": [
+      "INC-REDIS--038",
+      "INC-UPSTRE-049"
+    ],
+    "dependency_chain": [
+      "INC-REDIS--037",
+      "INC-UPSTRE-048"
+    ],
+    "easy": [
+      "INC-REDIS--033",
+      "INC-UPSTRE-044"
+    ],
+    "missing_information": [
+      "INC-REDIS--039"
+    ],
+    "multi_hop": [
+      "INC-REDIS--036",
+      "INC-UPSTRE-047"
+    ],
+    "multi_source": [
+      "INC-REDIS--035",
+      "INC-UPSTRE-046"
+    ],
+    "safe_only": [
+      "INC-REDIS--043"
+    ],
+    "sandbox_failure": [
+      "INC-MEMORY-031",
+      "INC-REDIS--042"
+    ],
+    "single_source": [
+      "INC-MEMORY-023",
+      "INC-REDIS--034",
+      "INC-UPSTRE-045"
+    ],
+    "tool_failure": [
+      "INC-MEMORY-030",
+      "INC-REDIS--041"
+    ]
+  }
+}

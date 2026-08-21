@@ -1,0 +1,16 @@
+{
+  "name": "portfolio_smoke_5",
+  "selection_algorithm": "one dev scenario per required category: easy, multi_source, multi_hop, dangerous_action, sandbox_failure",
+  "source_dev_manifest": "evaluation/manifests/dev.json",
+  "source_dev_manifest_sha256": "083428e9e976db0d746519dfaa9d94ee4db1ce0b5e6915d0bc714b73aed639be",
+  "git_commit": "94d225f4a57905d94400b99398add707281cd0a4",
+  "created_at": "2026-08-21T10:11:26.386716Z",
+  "seed": 0,
+  "ids": [
+    "INC-BAD-DE-000",
+    "INC-BAD-DE-002",
+    "INC-BAD-DE-003",
+    "INC-BAD-DE-005",
+    "INC-BAD-DE-009"
+  ]
+}
