@@ -112,6 +112,7 @@ class Settings(BaseSettings):
     tool_call_limit: int = 120
     max_plan_steps: int = 20
     max_delegation_depth: int = 2
+    subagent_max_llm_calls_per_run: int = 8
     context_compression_threshold_tokens: int = 24000
     context_compression_ratio: float = 0.8
     auto_approve_max_risk: int = 1

@@ -172,6 +172,7 @@ class CloudOpsRuntime:
             self.registry,
             self.adapter_for,
             skills_frontmatter=skills_frontmatter,
+            max_llm_calls_per_run=settings.subagent_max_llm_calls_per_run,
         )
         self._real_adapter: OpenAICompatibleAdapter | None = None
         self.created_adapters: list[ModelAdapter] = []
