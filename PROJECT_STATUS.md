@@ -46,4 +46,7 @@
 
 ### Final Declaration
 
+No formal real benchmark is claimed. Real DeepSeek integration is verified via
+probe and exploratory smoke artifacts only.
+
 No further real-LLM benchmark runs are required for the portfolio version of this project.

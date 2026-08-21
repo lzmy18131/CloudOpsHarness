@@ -97,40 +97,40 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 
 ### Real LLM Evaluation
 
-**Status: limited paired validation completed (stop-loss closure)**
+**Status: real DeepSeek integration verified; no formal real benchmark claimed.**
 
-- Model: **DeepSeek-V4-Flash** (`deepseek-v4-flash`)
+- Model: **DeepSeek-V4-Flash** (`deepseek-v4-flash`) — real API probe succeeded
 - Provider: DeepSeek OpenAI-compatible API
 - Environment: **Real LLM + simulated operations environment (MockOpsProvider)**
-- Paired real runs: **5 dev incidents × 2 systems × 1 repetition = 10 real runs**
-- Artifact: `eval_results/real_smoke_deepseek_v4_flash_final/`
+- Real artifacts exist from an exploratory smoke run:
+  `eval_results/real_smoke_deepseek_v4_flash_final/`
 
-This is a **portfolio-scale limited paired validation**, not an academic or
-production benchmark. A planned 20-scenario Formal Harness run was started but
-stopped under the project stop-loss policy before producing a complete paired
-artifact; only the completed paired smoke subset is used for Single-vs-Harness
-claims. A separate `Single-Agent` formal-20 exploratory artifact exists
-(`eval_results/real_deepseek_v4_flash_portfolio_formal_single/`), but it is not
-paired and is not used in the headline comparison.
+A planned 20-scenario Formal Harness run was started but stopped under the
+project stop-loss policy before producing a complete paired artifact. The
+project therefore does **not** claim a formal real benchmark, statistical
+significance, or production incident accuracy. The numbers below are
+**EXPLORATORY REAL SMOKE — NOT A FORMAL BENCHMARK** and must not be used as
+resume performance claims.
 
-| Metric | Single Agent | Full Harness | Delta |
-| --- | ---: | ---: | ---: |
-| Task Success | 0.000 | 0.200 | +0.200 |
-| RCA Accuracy | 0.000 | 0.000 | 0.000 |
-| Service Localization | 1.000 | 1.000 | 0.000 |
-| Evidence Grounding Precision | 0.429 | 0.033 | −0.395 |
-| Unsupported Claim Rate | 0.571 | 0.967 | +0.395 |
-| Tool F1 | 0.623 | 0.547 | −0.076 |
-| HITL Recall | 0.000 | 0.000 | 0.000 |
-| Unapproved Unsafe Execution | 0.000 | 0.000 | 0.000 |
-| Recovery Success | 0.000 | 1.000 | +1.000 |
-| Mean Total Tokens | 162,068 | 199,208 | +37,140 |
-| Mean Model Calls | 9.2 | 32.2 | +23.0 |
-| P95 Latency (ms) | 63,906 | 303,391 | +239,485 |
+| Metric | Single Agent | Full Harness |
+| --- | ---: | ---: |
+| Task Success | 0.000 | 0.200 |
+| RCA Accuracy | 0.000 | 0.000 |
+| Service Localization | 1.000 | 1.000 |
+| Evidence Grounding Precision | 0.429 | 0.033 |
+| Unsupported Claim Rate | 0.571 | 0.967 |
+| Tool F1 | 0.623 | 0.547 |
+| HITL Recall | 0.000 | 0.000 |
+| Unapproved Unsafe Execution | 0.000 | 0.000 |
+| Recovery Success | 0.000 | 1.000 |
+| Mean Total Tokens | 162,068 | 199,208 |
+| Mean Model Calls | 9.2 | 32.2 |
+| P95 Latency (ms) | 63,906 | 303,391 |
 
-Numbers above are read from the real artifact. Harness costs substantially more
-tokens, model calls and latency; on this small sample it improved recovery
-success but did not improve RCA or evidence grounding.
+These numbers come from a real smoke artifact but are **exploratory only**. They
+show the Harness costs substantially more tokens, model calls and latency; on
+this small sample it improved recovery success but did not improve RCA or
+evidence grounding.
 
 ```bash
 # Requires LLM_API_KEY / LLM_BASE_URL / LLM_MODEL in .env

@@ -75,9 +75,12 @@ swap → retry. The proxy identity remains stable across rebuilds.
 - Base URL: `https://api.deepseek.com`
 - Temperature: `0.0`
 - Provider usage tokens recorded from API responses.
-- Real paired runs completed on **5 dev incidents** (Single + Harness).
+- Real API probe succeeded; real smoke runs completed on **5 dev incidents**
+  (Single + Harness).
 - A 20-scenario Formal Harness run was started but stopped under stop-loss before
   producing a complete paired artifact.
+- **No formal real benchmark is claimed.** All real numbers in this report are
+  exploratory smoke data and must not be used as resume performance claims.
 
 ## 11. Formal-20 Results
 
