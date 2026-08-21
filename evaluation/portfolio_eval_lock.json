@@ -1,0 +1,23 @@
+{
+  "git_commit": "b67aca691e83a5b7f9fdee9363169525527b3314",
+  "created_at": "2026-08-21T10:11:44.413919Z",
+  "model": "deepseek-v4-flash",
+  "base_url_host": "api.deepseek.com",
+  "temperature": 0.0,
+  "max_tokens": null,
+  "retry_count": 2,
+  "timeout_seconds": 120.0,
+  "model_call_limit": 60,
+  "tool_call_limit": 120,
+  "max_plan_steps": 20,
+  "subagent_max_llm_calls_per_run": 4,
+  "formal_20_manifest_sha256": "c3721befce6825399ee4fce142bc7429886d103899f5d5b8b1d0e18b5f1b3d72",
+  "stability_10_manifest_sha256": "df096aa6754f337ede40432c7cd1b1deb1a1ca4436472c32d1e96b92d9e7283d",
+  "smoke_5_manifest_sha256": "1f9c2f589383acd6425d24a54976fc5f73e94c2cd7d4667788f01782f3da8ddc",
+  "dataset_sha256": "e894821d5bc08ee2a6010cf44e3aac7575641f78ff5c00e0e12618c17feea276",
+  "metric_version": "2.0",
+  "evaluator_hash": "e6c985925ec9e6798d38d48f30931daf40e12bb6f0dd6f5b468a0bed352eca0e",
+  "prompt_hash": "7b07de3640d4a3f4e7cdee3845a937e7b91e84c2076f687d6d3f4e8f2aefcae4",
+  "output_schema_hash": "f8021e67f013381b8fbc488958e53e653925e76e9a8c4193f0f25036009c4989",
+  "notes": "Portfolio-scale evaluation lock. No changes after this lock except documented infrastructure bug fixes that invalidate and require full rerun."
+}

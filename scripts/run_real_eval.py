@@ -112,7 +112,11 @@ def main() -> None:
     parser.add_argument("--dataset", type=Path, default=default_scenarios_path())
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", type=Path, default=None)
-    parser.add_argument("--split", choices=["dev", "test", "all"], default=None, help="use split manifest")
+    parser.add_argument(
+        "--split",
+        default=None,
+        help="split manifest name under evaluation/manifests (dev, test, all, or custom file name)",
+    )
     parser.add_argument("--max-api-calls", type=int, default=None, help="hard budget: stop after N LLM calls")
     parser.add_argument(
         "--max-total-tokens", type=int, default=None, help="hard budget: stop after N total tokens"
