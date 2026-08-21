@@ -40,9 +40,25 @@ class OpenAICompatibleAdapter(ModelAdapter):
         response_format: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Assemble request kwargs (exposed for unit testing without network)."""
+        serialized_messages = []
+        for m in messages:
+            dumped = m.model_dump(exclude_none=True, exclude={"name"})
+            if m.role == "assistant" and m.tool_calls:
+                dumped["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": tc.type,
+                        "function": {
+                            "name": tc.name,
+                            "arguments": json.dumps(tc.arguments, ensure_ascii=False),
+                        },
+                    }
+                    for tc in m.tool_calls
+                ]
+            serialized_messages.append(dumped)
         params: dict[str, Any] = {
             "model": self.settings.llm_model,
-            "messages": [m.model_dump(exclude_none=True, exclude={"name"}) for m in messages],
+            "messages": serialized_messages,
             "temperature": self.settings.llm_temperature,
         }
         if self.settings.llm_max_tokens is not None:

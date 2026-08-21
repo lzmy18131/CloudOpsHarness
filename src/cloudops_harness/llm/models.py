@@ -11,6 +11,7 @@ class ToolCall(BaseModel):
     id: str
     name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
+    type: Literal["function"] = "function"
 
 
 class LLMMessage(BaseModel):

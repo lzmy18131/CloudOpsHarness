@@ -65,7 +65,7 @@ async def test_mcp_tool_call_returns_structured_content(server) -> None:
 @pytest.mark.asyncio
 async def test_adapter_implements_ops_provider_through_mcp(adapter) -> None:
     catalog = await adapter.get_service_catalog()
-    assert len(catalog) == 6
+    assert len(catalog) == 10
     release = await adapter.get_current_release("order-service")
     assert release == "v7.4.2"
     health = await adapter.get_service_health("user-service")

@@ -73,7 +73,7 @@ def provider() -> MockOpsProvider:
 @pytest.mark.asyncio
 async def test_catalog_and_topology_load(provider) -> None:
     catalog = await provider.get_service_catalog()
-    assert len(catalog) == 6
+    assert len(catalog) == 10
     assert "payment-service" in {s.name for s in catalog}
     topology = await provider.get_service_topology()
     assert "mysql-primary" in topology.nodes

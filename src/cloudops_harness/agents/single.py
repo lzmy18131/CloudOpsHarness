@@ -13,8 +13,10 @@ from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from cloudops_harness.llm.base import ModelAdapter
+from cloudops_harness.agents.models import RcaHypothesis
+from cloudops_harness.llm.base import ModelAdapter, ModelCallLimitError
 from cloudops_harness.llm.models import LLMMessage
+from cloudops_harness.llm.structured import StructuredOutputError, generate_structured
 from cloudops_harness.tools.registry import ToolApprovalRequiredError, ToolRegistry
 
 
@@ -22,6 +24,7 @@ class SingleAgentState(TypedDict, total=False):
     messages: Annotated[list[dict[str, Any]], operator.add]
     final_output: str
     status: str
+    rca: dict[str, Any]
     thread_id: str
     user_id: str
 
@@ -82,7 +85,35 @@ def build_single_agent_graph(
             LLMMessage(role="assistant", content=turn.content or "", tool_calls=turn.tool_calls or None)
         )
         if not turn.tool_calls:
-            return {"messages": [appended], "final_output": turn.content or "", "status": "done"}
+            # Produce a structured RCA in the same final evaluation schema used by
+            # the full Harness. This keeps Single-Agent scoring fair and prevents
+            # the baseline from relying only on free-text substring fallback.
+            try:
+                rca = await generate_structured(
+                    adapter,
+                    messages,
+                    schema_name="RcaHypothesis",
+                    output_model=RcaHypothesis,
+                    max_retries=1,
+                )
+                rca_dump = rca.model_dump()
+            except (StructuredOutputError, ModelCallLimitError) as exc:
+                rca_dump = {
+                    "root_cause": turn.content or "",
+                    "fault_type": "unknown",
+                    "fault_category": "unknown",
+                    "affected_service": "unknown",
+                    "root_cause_component": "unknown",
+                    "confidence": 0.0,
+                    "supporting_evidence": [],
+                    "unresolved": [f"structured output failed: {exc}"],
+                }
+            return {
+                "messages": [appended],
+                "final_output": turn.content or "",
+                "status": "done",
+                "rca": rca_dump,
+            }
         return {"messages": [appended]}
 
     async def tools_node(state: SingleAgentState) -> dict[str, Any]:

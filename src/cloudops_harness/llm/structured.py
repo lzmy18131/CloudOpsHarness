@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any, TypeVar
 
+from openai import BadRequestError
 from pydantic import BaseModel
 
 from cloudops_harness.llm.base import ModelAdapter
@@ -79,6 +80,30 @@ async def generate_structured(
             ]
         try:
             turn = await adapter.generate(messages, response_format=response_format)
+        except BadRequestError as exc:
+            # Some OpenAI-compatible providers (e.g. DeepSeek) do not support the
+            # json_schema response_format yet. Fall back to json_object with an
+            # explicit "return JSON only" instruction. This is NOT a FakeLLM
+            # fallback; the real model is still called.
+            if "response_format" in str(exc).lower() or "json_schema" in str(exc).lower():
+                schema_text = json.dumps(output_model.model_json_schema(), ensure_ascii=False)
+                json_messages = [
+                    *messages,
+                    LLMMessage(
+                        role="system",
+                        content=(
+                            "Return ONLY a JSON object matching this schema. "
+                            "No prose, no markdown fences.\n"
+                            f"SCHEMA:\n{schema_text}"
+                        ),
+                    ),
+                ]
+                turn = await adapter.generate(
+                    json_messages,
+                    response_format={"type": "json_object"},
+                )
+            else:
+                raise
         except TimeoutError as exc:
             last_error = exc
             continue

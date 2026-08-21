@@ -432,7 +432,7 @@ class MockOpsProvider(OpsProvider):
         self, action: str, service: str, environment: str, params: dict[str, Any]
     ) -> DryRunResult:
         self._require_service(service)
-        common = {"action": action, "target": service, "environment": environment, "valid": True}
+        common = {"action": action, "target": service, "environment": environment}
         if action == "rollback_release":
             before = self.current_releases.get(service, self.catalog_by_name[service].current_release)
             target = params.get("to_version", before)
