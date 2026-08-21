@@ -409,14 +409,23 @@ def compute_metrics(
     }
     evidence_refs = [str(ref) for ref in rca.get("supporting_evidence", [])]
     grounded_refs = []
+    grounded_tools: set[str] = set()
     for ref in evidence_refs:
         ref_tool = evidence_by_id.get(ref, "")
         if not ref_tool:
             ref_tool = next((tool for tool in actual_tool_names if tool in ref), "")
         if ref_tool in actual_tool_names:
             grounded_refs.append(ref)
+            grounded_tools.add(ref_tool)
     evidence_grounding_precision = len(grounded_refs) / len(evidence_refs) if evidence_refs else 0.0
-    evidence_recall = len(grounded_refs) / len(required_categories) if required_categories else 1.0
+    grounded_categories = {
+        EVIDENCE_CATEGORIES[tool] for tool in grounded_tools if tool in EVIDENCE_CATEGORIES
+    }
+    evidence_recall = (
+        len(grounded_categories & required_categories) / len(required_categories)
+        if required_categories
+        else 1.0
+    )
     unsupported_claim_rate = (
         1.0 - evidence_grounding_precision if evidence_refs else (1.0 if rca.get("root_cause") else 0.0)
     )

@@ -1,0 +1,28 @@
+{
+  "tag": "real-llm-deepseek-v4-flash-n5-r1",
+  "adapter_type": "real",
+  "provider": "https://api.deepseek.com",
+  "base_url_host": "api.deepseek.com",
+  "model": "deepseek-v4-flash",
+  "temperature": 0.0,
+  "max_tokens": null,
+  "timeout_seconds": 120.0,
+  "retry_count": 2,
+  "systems": [
+    "single-agent",
+    "harness"
+  ],
+  "repeat": 1,
+  "seed": 42,
+  "max_api_calls": null,
+  "max_total_tokens": null,
+  "dataset_path": "D:\\AegisOps\\fixtures\\incidents\\scenarios.json",
+  "dataset_sha256": "e894821d5bc08ee2a6010cf44e3aac7575641f78ff5c00e0e12618c17feea276",
+  "split": "portfolio_smoke_5",
+  "environment": "dev",
+  "sandbox_backend": "auto",
+  "model_call_limit": 60,
+  "tool_call_limit": 120,
+  "max_plan_steps": 20,
+  "max_delegation_depth": 2
+}

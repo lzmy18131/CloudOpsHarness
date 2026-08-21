@@ -1,0 +1,28 @@
+{
+  "path": "D:\\AegisOps\\fixtures\\incidents\\scenarios.json",
+  "sha256": "e894821d5bc08ee2a6010cf44e3aac7575641f78ff5c00e0e12618c17feea276",
+  "scenario_count": 20,
+  "scenario_ids": [
+    "INC-MEMORY-023",
+    "INC-MEMORY-030",
+    "INC-MEMORY-031",
+    "INC-REDIS--033",
+    "INC-REDIS--034",
+    "INC-REDIS--035",
+    "INC-REDIS--036",
+    "INC-REDIS--037",
+    "INC-REDIS--038",
+    "INC-REDIS--039",
+    "INC-REDIS--040",
+    "INC-REDIS--041",
+    "INC-REDIS--042",
+    "INC-REDIS--043",
+    "INC-UPSTRE-044",
+    "INC-UPSTRE-045",
+    "INC-UPSTRE-046",
+    "INC-UPSTRE-047",
+    "INC-UPSTRE-048",
+    "INC-UPSTRE-049"
+  ],
+  "split": "portfolio_formal_20"
+}

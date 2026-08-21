@@ -110,3 +110,41 @@ def test_hallucinated_evidence_is_penalized() -> None:
     assert result.evidence_grounding_precision == 0.0
     assert result.unsupported_claim_rate == 1.0
     assert result.evidence_recall == 0.0
+
+
+def test_metric_rates_are_bounded() -> None:
+    scenario = _scenario()
+    final_state = {
+        "status": "done",
+        "final_report": "RCA: release retry loop.",
+        "rca": {
+            "root_cause": "release v2.4.0 retry loop",
+            "fault_type": "bad-deployment",
+            "fault_category": "bad-deployment",
+            "affected_service": "payment-service",
+            "root_cause_component": "release",
+            "supporting_evidence": [
+                "observability-ev-1",
+                "observability-ev-2",
+                "observability-ev-3",
+                "observability-ev-4",
+            ],
+        },
+        "evidence": [
+            {
+                "id": f"observability-ev-{i}",
+                "tool": "query_metrics",
+                "source": "observability",
+                "summary": "m",
+            }
+            for i in range(1, 5)
+        ],
+        "messages": [],
+    }
+    result = _run(scenario, final_state)
+    assert 0.0 <= result.evidence_recall <= 1.0
+    assert 0.0 <= result.evidence_grounding_precision <= 1.0
+    assert 0.0 <= result.tool_precision <= 1.0
+    assert 0.0 <= result.tool_recall <= 1.0
+    assert 0.0 <= result.tool_f1 <= 1.0
+    assert 0.0 <= result.unsupported_claim_rate <= 1.0

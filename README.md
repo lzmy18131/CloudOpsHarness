@@ -97,16 +97,44 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 
 ### Real LLM Evaluation
 
-**Status: pending** — no real LLM artifact is currently claimed.
+**Status: limited paired validation completed (stop-loss closure)**
 
-Real-model evaluation is fail-closed and uses the same harness as deterministic
-validation, but results are kept in `eval_results/real_*/` and never mixed with
-FakeLLM. Until a real run exists, README intentionally shows no real capability
-numbers.
+- Model: **DeepSeek-V4-Flash** (`deepseek-v4-flash`)
+- Provider: DeepSeek OpenAI-compatible API
+- Environment: **Real LLM + simulated operations environment (MockOpsProvider)**
+- Paired real runs: **5 dev incidents × 2 systems × 1 repetition = 10 real runs**
+- Artifact: `eval_results/real_smoke_deepseek_v4_flash_final/`
+
+This is a **portfolio-scale limited paired validation**, not an academic or
+production benchmark. A planned 20-scenario Formal Harness run was started but
+stopped under the project stop-loss policy before producing a complete paired
+artifact; only the completed paired smoke subset is used for Single-vs-Harness
+claims. A separate `Single-Agent` formal-20 exploratory artifact exists
+(`eval_results/real_deepseek_v4_flash_portfolio_formal_single/`), but it is not
+paired and is not used in the headline comparison.
+
+| Metric | Single Agent | Full Harness | Delta |
+| --- | ---: | ---: | ---: |
+| Task Success | 0.000 | 0.200 | +0.200 |
+| RCA Accuracy | 0.000 | 0.000 | 0.000 |
+| Service Localization | 1.000 | 1.000 | 0.000 |
+| Evidence Grounding Precision | 0.429 | 0.033 | −0.395 |
+| Unsupported Claim Rate | 0.571 | 0.967 | +0.395 |
+| Tool F1 | 0.623 | 0.547 | −0.076 |
+| HITL Recall | 0.000 | 0.000 | 0.000 |
+| Unapproved Unsafe Execution | 0.000 | 0.000 | 0.000 |
+| Recovery Success | 0.000 | 1.000 | +1.000 |
+| Mean Total Tokens | 162,068 | 199,208 | +37,140 |
+| Mean Model Calls | 9.2 | 32.2 | +23.0 |
+| P95 Latency (ms) | 63,906 | 303,391 | +239,485 |
+
+Numbers above are read from the real artifact. Harness costs substantially more
+tokens, model calls and latency; on this small sample it improved recovery
+success but did not improve RCA or evidence grounding.
 
 ```bash
 # Requires LLM_API_KEY / LLM_BASE_URL / LLM_MODEL in .env
-python scripts/run_real_eval.py --split test --systems single-agent,harness --repeat 3
+python scripts/run_real_eval.py --split portfolio_smoke_5 --repeat 1 --systems single-agent,harness --temperature 0
 ```
 
 ### Deterministic Workflow Validation
@@ -175,7 +203,7 @@ docker compose up -d mongo   # 然后 CLOUDOPS_STORAGE_BACKEND=mongo
 - **User isolation is logical isolation between supplied user IDs, not a production authentication/authorization boundary.** API 在提供 user_id 时执行 thread ownership 校验；但 Demo Identity 不能替代登录系统。
 - DockerSandboxBackend provides project-level execution isolation (read-only root, restricted writable workspace, resource controls). It is not a hardened multi-tenant microVM sandbox.
 - LocalSandboxBackend 仅用于开发演示；生产/不可信输入必须 `CLOUDOPS_SANDBOX_BACKEND=docker`。
-- FakeLLM 评测度量的是 **harness 正确性**，不是语言模型能力；真实 LLM 结果用 `scripts/run_real_eval.py` 单独生成，当前为 `pending`。
+- FakeLLM 评测度量的是 **harness 正确性**，不是语言模型能力；真实 LLM 结果用 `scripts/run_real_eval.py` 单独生成，当前为 limited paired validation（stop-loss closure），不是完整 formal paired benchmark。
 - 即使接入真实 LLM，当前内部 benchmark 仍运行在 **MockOpsProvider 模拟运维环境** 上，应描述为 `Real LLM, simulated operations environment`，不得声称 production incident benchmark。
 - 离线 FakeLLM 确定性验证的有效信息集中在 **unsafe/HITL 合规、恢复能力、resume、tool boundary 与 workflow correctness**；它不能证明任何模型智能。见 EVALUATION.md 的诚实说明。
 - MCP 默认 in-process transport；跨进程 stdio：`python -m cloudops_harness.mcp.server`。

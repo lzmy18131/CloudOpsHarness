@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -121,7 +122,17 @@ def main() -> None:
     parser.add_argument(
         "--max-total-tokens", type=int, default=None, help="hard budget: stop after N total tokens"
     )
+    parser.add_argument(
+        "--allow-real-api",
+        action="store_true",
+        help="explicit opt-in required when CLOUDOPS_DISABLE_REAL_EVAL=1",
+    )
     args = parser.parse_args()
+    if os.environ.get("CLOUDOPS_DISABLE_REAL_EVAL", "") == "1" and not args.allow_real_api:
+        raise SystemExit(
+            "CLOUDOPS_DISABLE_REAL_EVAL=1: real LLM evaluation is disabled for the frozen portfolio. "
+            "Pass --allow-real-api only if you intentionally re-open benchmark spending."
+        )
     args.systems = [s.strip() for s in args.systems.split(",") if s.strip()]
     unknown = [s for s in args.systems if s not in SYSTEM_FACTORIES]
     if unknown:

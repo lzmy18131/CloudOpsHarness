@@ -13,3 +13,4 @@ dist/
 build/
 *.egg-info/
 data-tmp/
+NEXT_SESSION_PROMPT.md
