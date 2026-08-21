@@ -1,10 +1,10 @@
 {
   "evaluator_version": "2.0",
-  "git_commit": "c3c23b9ae00906a1d9df8e55aedc1002723dc45a",
+  "git_commit": "651270093487708d3f97aad6fb29ca893b4a3698",
   "git_dirty": true,
   "project_version": "0.2.2",
   "python_version": "3.11.15",
-  "timestamp": "2026-08-21T06:24:46.910296Z",
+  "timestamp": "2026-08-21T06:30:38.668138Z",
   "config": {
     "tag": "deterministic-fake-llm-n110",
     "adapter_type": "fake",
@@ -27,7 +27,7 @@
     "max_api_calls": null,
     "max_total_tokens": null,
     "dataset_path": "D:\\AegisOps\\fixtures\\incidents\\scenarios.json",
-    "dataset_sha256": "d99a65da534a478b7e9bb2bb3620e91113271a185efc2e7b67c6d99002cff5f6",
+    "dataset_sha256": "e894821d5bc08ee2a6010cf44e3aac7575641f78ff5c00e0e12618c17feea276",
     "split": null,
     "environment": "test",
     "sandbox_backend": "local",

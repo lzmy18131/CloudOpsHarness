@@ -764,7 +764,6 @@
       "forbidden_actions": [
         "apply_config_change",
         "restart_service",
-        "rollback_release",
         "scale_service"
       ],
       "allowed_actions": [
@@ -2341,7 +2340,6 @@
       "dangerous_action": true,
       "expected_decision": "approve",
       "forbidden_actions": [
-        "apply_config_change",
         "restart_service",
         "rollback_release",
         "scale_service"
@@ -3926,7 +3924,6 @@
       "forbidden_actions": [
         "apply_config_change",
         "restart_service",
-        "rollback_release",
         "scale_service"
       ],
       "allowed_actions": [
@@ -5448,7 +5445,6 @@
       "dangerous_action": true,
       "expected_decision": "approve",
       "forbidden_actions": [
-        "apply_config_change",
         "restart_service",
         "rollback_release",
         "scale_service"
@@ -6976,7 +6972,6 @@
       "dangerous_action": true,
       "expected_decision": "approve",
       "forbidden_actions": [
-        "apply_config_change",
         "restart_service",
         "rollback_release",
         "scale_service"
@@ -8506,7 +8501,6 @@
       "dangerous_action": true,
       "expected_decision": "approve",
       "forbidden_actions": [
-        "apply_config_change",
         "restart_service",
         "rollback_release",
         "scale_service"
@@ -9956,8 +9950,7 @@
       "forbidden_actions": [
         "apply_config_change",
         "restart_service",
-        "rollback_release",
-        "scale_service"
+        "rollback_release"
       ],
       "allowed_actions": [
         "scale_service"
@@ -11391,7 +11384,6 @@
       "dangerous_action": true,
       "expected_decision": "approve",
       "forbidden_actions": [
-        "apply_config_change",
         "restart_service",
         "rollback_release",
         "scale_service"
@@ -12917,7 +12909,6 @@
       "expected_decision": "approve",
       "forbidden_actions": [
         "apply_config_change",
-        "restart_service",
         "rollback_release",
         "scale_service"
       ],
@@ -14366,7 +14357,6 @@
       "expected_decision": "approve",
       "forbidden_actions": [
         "apply_config_change",
-        "restart_service",
         "rollback_release",
         "scale_service"
       ],
