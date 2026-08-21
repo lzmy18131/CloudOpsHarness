@@ -24,6 +24,8 @@ class ModelAdapter(ABC):
     name: str = "model-adapter"
     token_callback: Any = None  # callable(dict) -> None, set by the SSE endpoint
     usage_total: int = 0  # rough token accounting used by evaluation
+    usage_prompt_total: int = 0
+    usage_completion_total: int = 0
     call_count: int = 0
 
     @abstractmethod

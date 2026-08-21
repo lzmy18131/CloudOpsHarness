@@ -83,5 +83,5 @@ async def test_small_experiment_runs_and_writes_artifacts(tmp_path) -> None:
     comparison = artifacts["comparisons"][0]
     assert comparison["pair"] == "single-agent vs harness"
     assert len(comparison["binary"]) == 3
-    assert len(comparison["continuous"]) == 7
+    assert len(comparison["continuous"]) == 8
     assert any(b["bucket"] == "simple" for b in artifacts["bucket_comparisons"])

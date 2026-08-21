@@ -1,0 +1,64 @@
+name: Real LLM Evaluation (manual only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model name"
+        required: true
+        default: "deepseek-chat"
+      base_url:
+        description: "OpenAI-compatible base URL"
+        required: false
+        default: "https://api.deepseek.com/v1"
+      systems:
+        description: "Comma-separated systems"
+        required: false
+        default: "single-agent,harness"
+      split:
+        description: "dev, test, or all"
+        required: false
+        default: "test"
+      repeat:
+        description: "Repetitions"
+        required: false
+        default: "3"
+      max_api_calls:
+        description: "Hard API-call budget (optional)"
+        required: false
+        default: ""
+
+jobs:
+  real-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Run real evaluation (fail-closed)
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ inputs.base_url }}
+          LLM_MODEL: ${{ inputs.model }}
+        run: |
+          EXTRA_ARGS=""
+          if [ -n "${{ inputs.max_api_calls }}" ]; then
+            EXTRA_ARGS="--max-api-calls ${{ inputs.max_api_calls }}"
+          fi
+          python scripts/run_real_eval.py \
+            --systems "${{ inputs.systems }}" \
+            --split "${{ inputs.split }}" \
+            --repeat "${{ inputs.repeat }}" \
+            $EXTRA_ARGS
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-eval-results
+          path: eval_results/real_*

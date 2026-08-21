@@ -8,12 +8,12 @@ from pathlib import Path
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
-from tests.integration.test_main_agent import make_scenario
 
 from cloudops_harness.agents.runtime import CloudOpsRuntime
 from cloudops_harness.config.settings import Settings
 from cloudops_harness.memory.preferences import PreferenceStore
 from cloudops_harness.tools.registry import ToolApprovalRequiredError
+from tests.integration.test_main_agent import make_scenario
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

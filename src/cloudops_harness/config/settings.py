@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.2
     llm_timeout_seconds: float = 120.0
     llm_max_retries: int = 2
+    llm_max_tokens: int | None = Field(
+        default=None,
+        validation_alias=AliasChoices("LLM_MAX_TOKENS", "CLOUDOPS_LLM_MAX_TOKENS"),
+    )
 
     # ---- storage -----------------------------------------------------
     checkpoint_backend: Literal["sqlite", "memory"] = "sqlite"

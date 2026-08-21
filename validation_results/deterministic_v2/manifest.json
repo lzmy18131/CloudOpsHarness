@@ -1,0 +1,39 @@
+{
+  "evaluator_version": "2.0",
+  "git_commit": "c3c23b9ae00906a1d9df8e55aedc1002723dc45a",
+  "git_dirty": true,
+  "project_version": "0.2.2",
+  "python_version": "3.11.15",
+  "timestamp": "2026-08-21T06:24:46.910296Z",
+  "config": {
+    "tag": "deterministic-fake-llm-n110",
+    "adapter_type": "fake",
+    "provider": "https://api.deepseek.com/v1",
+    "base_url_host": "api.deepseek.com",
+    "model": "deepseek-chat",
+    "temperature": 0.2,
+    "max_tokens": null,
+    "timeout_seconds": 120.0,
+    "retry_count": 2,
+    "systems": [
+      "single-agent",
+      "multi-agent",
+      "multi-no-isolation",
+      "harness",
+      "harness-no-recovery"
+    ],
+    "repeat": 1,
+    "seed": 42,
+    "max_api_calls": null,
+    "max_total_tokens": null,
+    "dataset_path": "D:\\AegisOps\\fixtures\\incidents\\scenarios.json",
+    "dataset_sha256": "d99a65da534a478b7e9bb2bb3620e91113271a185efc2e7b67c6d99002cff5f6",
+    "split": null,
+    "environment": "test",
+    "sandbox_backend": "local",
+    "model_call_limit": 60,
+    "tool_call_limit": 120,
+    "max_plan_steps": 20,
+    "max_delegation_depth": 2
+  }
+}

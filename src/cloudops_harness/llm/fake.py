@@ -304,6 +304,9 @@ class FakeLLM(ModelAdapter):
                     "evidence_summary": f"evidence from {', '.join(scenario.get('relevant_metrics', []) + scenario.get('relevant_logs', []))}",
                     "unresolved": [],
                     "fault_type": scenario["fault_type"],
+                    "fault_category": scenario.get("fault_category", scenario["fault_type"]),
+                    "affected_service": scenario.get("affected_service", scenario.get("service", "unknown")),
+                    "root_cause_component": scenario.get("root_cause_component", "unknown"),
                 }
             return {
                 "root_cause": "unknown",

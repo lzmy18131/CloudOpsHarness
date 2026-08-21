@@ -140,7 +140,12 @@ connection; the UI drops duplicates/out-of-order frames. LangGraph streams in
 
 ## 10. Evaluation
 
-See `EVALUATION.md`. 110 scenarios across 11 difficulty buckets; systems
+See `EVALUATION.md`. 110 scenarios across 11 difficulty buckets; fixed
+dev/test holdout manifests in `evaluation/manifests/`; systems
 Single / Multi / Multi-no-isolation / Harness / Harness-no-recovery; paired
 McNemar for binary metrics, paired bootstrap 95% CI for continuous metrics;
-per-bucket comparisons; every number stored in `eval_results/*`.
+per-bucket comparisons.
+
+- Deterministic validation (FakeLLM, CI-only): `validation_results/deterministic_*`.
+- Real-LLM benchmark (fail-closed): `eval_results/real_*/`.
+- External AIOpsLab adapter: `src/cloudops_harness/benchmarks/aiopslab.py`.

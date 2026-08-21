@@ -95,41 +95,39 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 
 ## 8. Evaluation
 
-**结果全部来自真实运行 artifact**（`eval_results/*/summary.json`），禁止伪造。离线确定性评测（FakeLLM，n=110）与真实 LLM 评测（需 key）使用同一 harness。
+### Real LLM Evaluation
 
-<!-- EVAL_RESULTS -->
-当前真实 artifact：`eval_results/offline_20260816T060613Z/summary.json`
-（tag `offline-fake-llm-n110`，n=110 × 5 systems，2026-08-16 UTC）。
+**Status: pending** — no real LLM artifact is currently claimed.
 
-| 指标 | Single | Multi | Multi 无隔离 | **Harness** | Harness 无恢复 |
-|---|---|---|---|---|---|
-| Root Cause Accuracy | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Task Completion | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Tool Selection Accuracy | 1.000 | 0.987 | 0.987 | 0.987 | 0.987 |
-| Evidence Completeness | 1.000 | 0.984 | 0.984 | 0.984 | 0.984 |
-| Unsafe Action（危险场景） | 1.000 | 1.000 | 1.000 | **0.000** | 0.000 |
-| Unsafe Execution Count | 10 | 10 | 10 | **0** | 0 |
-| HITL Recall/Compliance | 0.000 | 0.000 | 0.000 | **1.000** | 1.000 |
-| Recovery Success（10 个沙箱故障场景） | 0/10 | 10/10 | 10/10 | **10/10** | 0/10 |
-| Recovery Latency ms (mean/median/P95) | - | 171.7/172.0/187.0 | 170.3/172.0/187.0 | 173.6/172.0/188.0 | - |
-| Resume Success | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Mean Main-Context Tokens | n/a | 1326.9 | 1372.8 | 1326.9 | 1326.9 |
-| Mean Tool Calls | 5.41 | 27.46 | 27.46 | 27.46 | 27.46 |
-| Mean LLM Calls | 6.41 | 43.46 | 43.46 | 43.46 | 43.46 |
-| Mean Token Cost | 4803.4 | 39278.2 | 39335.2 | 39286.2 | 39275.4 |
-| Mean Latency (ms) | 60.1 | 127.8 | 124.4 | 126.1 | 110.2 |
+Real-model evaluation is fail-closed and uses the same harness as deterministic
+validation, but results are kept in `eval_results/real_*/` and never mixed with
+FakeLLM. Until a real run exists, README intentionally shows no real capability
+numbers.
 
-配对统计（同一 110 个 incident 配对运行）：
-- Unsafe action：Single/Multi vs Harness 的 McNemar p=0.002（10 个 discordant 对全部在无 HITL 侧）。
-- Recovery：Harness vs Harness-no-recovery p=0.002（0/10 vs 10/10）。
-- Context isolation：关闭隔离后 main-context +45.9 token（95% CI [44.9, 46.9]，artifact 可复算），总 token +53.7；绝对值受截断策略限制，不夸大。
-- Single vs Harness：token −34482.8（95% CI [−34790.9, −34185.3]），latency −66.1 ms（95% CI [−72.0, −61.0]）。
-- Bucket（Single vs Harness）：simple n=20 / multi_source n=10 / multi_hop n=20 / complex n=50 / failure_injection n=20；FakeLLM 下 RCA 全部到上限，有效差异是成本与 unsafe 护栏。
+```bash
+# Requires LLM_API_KEY / LLM_BASE_URL / LLM_MODEL in .env
+python scripts/run_real_eval.py --split test --systems single-agent,harness --repeat 3
+```
 
-诚实结论：FakeLLM 是确定性控制器，**本评测验证的是 workflow correctness、安全护栏、恢复与 harness overhead，不是真实模型推理智能**。真实 LLM 结果须用 `scripts/run_real_eval.py` 在独立目录生成；本仓库不含伪造数字。
-<!-- /EVAL_RESULTS -->
+### Deterministic Workflow Validation
 
-统计方法：binary 指标 McNemar 精确检验；continuous 指标 paired bootstrap 95% CI。方法论见 [`EVALUATION.md`](EVALUATION.md)。
+`FakeLLM` is a deterministic test driver used for CI and architecture regression.
+**It is NOT used to claim model intelligence.**
+
+| Check | Status |
+|---|---|
+| Policy boundary (dangerous tools cannot bypass HITL) | PASS |
+| HITL flow (approve / reject / action_id binding) | PASS |
+| Rejected action never executes + continuation | PASS |
+| Checkpoint / resume | PASS |
+| Sandbox recovery | PASS |
+| Structured-output handling | PASS |
+| Leakage audit (no evaluator ground truth in prompts/tools) | PASS |
+
+Results artifact: `validation_results/deterministic_v2/` (n=110 × systems,
+FakeLLM/CI-only). Historical FakeLLM artifacts remain in `eval_results/` for audit.
+
+Methodology and honest limitations: [`EVALUATION.md`](EVALUATION.md).
 
 
 ## 9. Claim → Evidence 映射
@@ -155,7 +153,7 @@ uvicorn cloudops_harness.api.app:create_app --factory --port 8090
 | Dynamic skill 安全门 | `SkillInstaller` | `test_skills_memory.py`（7 项安全测试） |
 | Dry run before HITL | `dry_run_action` L0 + `ActionRequest.dry_run` | `test_tools.py`, executor 代码 |
 | Remediation 后 verify + resolved | `build_verify_node` before/after + resolved | `test_main_agent.py`（最终状态） |
-| Evaluation 数字可复算 | raw per-run 明细 | `eval_results/offline_20260816T060613Z/summary.json` |
+| Evaluation 数字可复算 | raw per-run 明细 + manifest | `validation_results/deterministic_*/runs.jsonl` |
 
 ## 10. Quick Start
 
@@ -177,7 +175,8 @@ docker compose up -d mongo   # 然后 CLOUDOPS_STORAGE_BACKEND=mongo
 - **User isolation is logical isolation between supplied user IDs, not a production authentication/authorization boundary.** API 在提供 user_id 时执行 thread ownership 校验；但 Demo Identity 不能替代登录系统。
 - DockerSandboxBackend provides project-level execution isolation (read-only root, restricted writable workspace, resource controls). It is not a hardened multi-tenant microVM sandbox.
 - LocalSandboxBackend 仅用于开发演示；生产/不可信输入必须 `CLOUDOPS_SANDBOX_BACKEND=docker`。
-- FakeLLM 评测度量的是 **harness 正确性**，不是语言模型能力；真实 LLM 结果用 `scripts/run_real_eval.py` 单独生成。
-- 离线 FakeLLM 110 场景下，Single/Multi/Harness 的 RCA 正确率都接近上限（确定性控制器知道场景），对比的有效信息集中在 **unsafe/HITL 合规、恢复能力与 token/latency 成本**。见 EVALUATION.md 的诚实说明。
+- FakeLLM 评测度量的是 **harness 正确性**，不是语言模型能力；真实 LLM 结果用 `scripts/run_real_eval.py` 单独生成，当前为 `pending`。
+- 即使接入真实 LLM，当前内部 benchmark 仍运行在 **MockOpsProvider 模拟运维环境** 上，应描述为 `Real LLM, simulated operations environment`，不得声称 production incident benchmark。
+- 离线 FakeLLM 确定性验证的有效信息集中在 **unsafe/HITL 合规、恢复能力、resume、tool boundary 与 workflow correctness**；它不能证明任何模型智能。见 EVALUATION.md 的诚实说明。
 - MCP 默认 in-process transport；跨进程 stdio：`python -m cloudops_harness.mcp.server`。
 - 无向量数据库 / GraphRAG（刻意不做，聚焦 Harness）。

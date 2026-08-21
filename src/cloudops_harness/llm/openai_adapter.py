@@ -45,6 +45,8 @@ class OpenAICompatibleAdapter(ModelAdapter):
             "messages": [m.model_dump(exclude_none=True, exclude={"name"}) for m in messages],
             "temperature": self.settings.llm_temperature,
         }
+        if self.settings.llm_max_tokens is not None:
+            params["max_tokens"] = self.settings.llm_max_tokens
         if tools:
             params["tools"] = tools
             params["tool_choice"] = "auto"
@@ -79,6 +81,8 @@ class OpenAICompatibleAdapter(ModelAdapter):
                 total_tokens=response.usage.total_tokens or 0,
             )
         self.usage_total += usage.total_tokens
+        self.usage_prompt_total += usage.prompt_tokens
+        self.usage_completion_total += usage.completion_tokens
         if self.token_callback is not None and message.content:
             self.token_callback({"type": "token", "content": message.content, "source": "main"})
         return AssistantTurn(

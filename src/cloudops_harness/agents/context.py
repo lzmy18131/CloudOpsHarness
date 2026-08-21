@@ -68,8 +68,9 @@ def assemble_main_messages(
         "available skills (progressive disclosure): "
         + (", ".join(f"{s['name']}: {s['description']}" for s in skills_frontmatter) or "none"),
     ]
-    if scenario:
-        system_extra.append(f"INCIDENT_ID: {scenario.get('incident_id', '')}")
+    # NOTE: INCIDENT_ID is deliberately NOT included in LLM prompts.
+    # Scenario IDs encode fault-type prefixes and are evaluator-only metadata;
+    # including them would leak ground-truth labels into real-model evaluation.
     messages = [
         LLMMessage(role="system", content=MAIN_SYSTEM_PROMPT + "\n" + "\n".join(system_extra)),
         LLMMessage(role="user", content=f"Evidence so far:\n{evidence_block(state)}"),

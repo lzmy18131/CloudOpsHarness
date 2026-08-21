@@ -83,6 +83,9 @@ class SubAgentReport(BaseModel):
 class RcaHypothesis(BaseModel):
     root_cause: str
     fault_type: str = "unknown"
+    fault_category: str = ""
+    affected_service: str = "unknown"
+    root_cause_component: str = "unknown"
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     evidence_summary: str = ""
     supporting_evidence: list[str] = Field(default_factory=list)

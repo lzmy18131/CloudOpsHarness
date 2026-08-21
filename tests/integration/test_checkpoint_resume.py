@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 from langgraph.types import Command
-from tests.integration.test_main_agent import make_scenario
 
 from cloudops_harness.agents.checkpoint import open_checkpointer
 from cloudops_harness.agents.runtime import CloudOpsRuntime
 from cloudops_harness.config.settings import Settings
+from tests.integration.test_main_agent import make_scenario
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

@@ -251,8 +251,10 @@ class MockOpsProvider(OpsProvider):
                             level=spec.get("level", "ERROR"),
                             service=service,
                             message=message,
-                            trace_id=f"trace-{scenario['incident_id']}-{i:04d}",
-                            extra={"incident_id": scenario["incident_id"]},
+                            # Do not attach scenario incident_id: it is evaluator-only
+                            # metadata and can leak fault-type prefixes to the model.
+                            trace_id=f"trace-{int(_hash01(service, message, i, self.seed) * 0xFFFFFFFF):032x}",
+                            extra={},
                         )
                     )
 
@@ -400,7 +402,13 @@ class MockOpsProvider(OpsProvider):
         self._require_service(service)
         await self._pre_call("get_incident_history")
         records = [i for i in self._historical if i.service == service]
-        return sorted(records, key=lambda i: i.occurred_at, reverse=True)[:limit]
+        # Leakage guard: historical incidents are returned to the model as
+        # lessons/titles only. Exact root_cause/fault_type labels are evaluator
+        # ground truth in this synthetic environment and must not be exposed.
+        sanitized = [
+            i.model_copy(update={"fault_type": "[redacted]", "root_cause": "[redacted]"}) for i in records
+        ]
+        return sorted(sanitized, key=lambda i: i.occurred_at, reverse=True)[:limit]
 
     async def get_current_release(self, service: str) -> str:
         self._require_service(service)
@@ -617,7 +625,9 @@ class MockOpsProvider(OpsProvider):
                 status, message = HealthStatus.HEALTHY, "remediation verified"
             elif scenario:
                 status = HealthStatus.DOWN if scenario.get("severity") == "P0" else HealthStatus.DEGRADED
-                message = scenario.get("title", "active incident")
+                # Generic message only: the scenario title contains the fault label
+                # and is evaluator metadata, not public service health text.
+                message = "active incident detected"
             else:
                 status, message = HealthStatus.HEALTHY, "within SLO"
 

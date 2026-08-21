@@ -1,117 +1,183 @@
 # CloudOps Harness Evaluation
 
-## 0. Hard rules
+## 1. Evaluation philosophy
 
-1. 所有数字必须来自真实运行的 evaluation artifact（`eval_results/*/summary.json`）。
-2. FakeLLM（离线）与真实 LLM 评测完全分开；CI 不依赖任何 API key。
-3. FakeLLM 只能证明 workflow/harness 正确性，不宣称模型能力。
-4. 禁止挑选场景；样本量与模型写在 tag 中。
+Credibility over impressive numbers. The project uses four strictly separated
+levels of evidence:
 
-## 1. Dataset
+| Level | What it proves | Mode |
+|---|---|---|
+| 1. Unit / integration tests | code correctness | `pytest` |
+| 2. Deterministic workflow validation | workflow/policy/recovery correctness | FakeLLM, CI-only |
+| 3. Real-LLM benchmark | actual model-agent behavior | real OpenAI-compatible endpoint |
+| 4. External AIOps benchmark | external validity | AIOpsLab adapter (pending execution) |
 
-- `fixtures/incidents/scenarios.json`：**110 条**，由 `scenario_builder.py` 生成。
-- 10 类故障 × 11 个变体：`easy / single_source / multi_source / multi_hop /
-  dependency_chain / dangerous_action / missing_information / ambiguous /
-  tool_failure / sandbox_failure / safe_only`。
-- 每条含 ground truth：root_cause / relevant_metrics / relevant_logs /
-  relevant_changes / expected_tools / recommended_action / dangerous_action
-  以及嵌入式 evidence specs。
-- `validate_dataset()` 测试强制不变量。
+Hard rules:
 
-## 2. Systems
+1. All public numbers come from real artifacts; no cherry-picking.
+2. FakeLLM is **not** a model capability benchmark.
+3. Real-LLM eval is **fail-closed**: no key, no endpoint, no fabricated numbers.
+4. Test ground truth is not used for prompt engineering.
+5. Every failure is preserved.
 
-| System | 组成 |
+## 2. Deterministic validation
+
+- Script: `scripts/run_workflow_validation.py`
+- Output: `validation_results/deterministic_*`
+- Legacy `scripts/run_eval.py` is a deprecated wrapper and prints a warning.
+- FakeLLM is retained for unit/integration/CI, graph deterministic testing,
+  HITL state-machine testing, sandbox recovery, checkpoint/resume and
+  structured-output repair.
+
+FakeLLM results are reported as workflow checks, not accuracy headlines:
+
+- policy boundary tests: PASS
+- HITL flow: PASS
+- checkpoint/resume: PASS
+- sandbox recovery: PASS
+- structured-output handling: PASS
+
+## 3. Real-LLM evaluation
+
+- Script: `scripts/run_real_eval.py`
+- Requires `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL`.
+- Supports OpenAI-compatible endpoints (DeepSeek / OpenAI / Qwen / vLLM).
+- CLI: `--model --base-url --temperature --systems --limit --repeat --dataset
+  --seed --output-dir --split --max-api-calls --max-total-tokens`.
+- Output: `eval_results/real_<model>_<timestamp>/`
+- `adapter_type = real` in every artifact; if a real model call fails, the run is
+  marked `FAILED` and preserved. There is **no fallback to FakeLLM**.
+
+Current status: **pending** — no real-LLM artifact is claimed until a real run
+is executed with a valid API key.
+
+## 4. Dataset and holdout
+
+- `fixtures/incidents/scenarios.json`: 110 scenarios, deterministic builder.
+- Split manifests:
+  - `evaluation/manifests/dev.json` (30 IDs)
+  - `evaluation/manifests/test.json` (80 IDs)
+- The split is deterministic round-robin by category and fixed.
+- `test` is the blind holdout: its ground truth must not be used to tune prompts.
+- `dataset_sha256` is recorded in manifests and every artifact.
+
+## 5. Metrics
+
+Structured primary metrics:
+
+| Metric | Definition |
 |---|---|
-| single-agent | 一个 Agent 拥有全部工具，无规划/隔离/HITL |
-| multi-agent | Main + 4 SubAgents + planning + isolation，HITL 关闭 |
-| multi-no-isolation | 同上但 context isolation 关闭（raw transcript 注入主上下文） |
-| harness | 完整 Harness：planning + isolation + sandbox + HITL + recovery |
-| harness-no-recovery | 完整 Harness 但 sandbox auto-recovery 关闭 |
+| `task_success_rate` | scenario-type-specific success, not graph done |
+| `rca_localization_accuracy` | affected service/component correct |
+| `rca_fault_type_accuracy` | canonical fault type correct |
+| `rca_root_cause_accuracy` | canonical `root_cause_id` match |
+| `evidence_grounding_precision` | supporting evidence refs map to actually called tools |
+| `evidence_recall` | grounded evidence vs required categories |
+| `unsupported_claim_rate` | fraction of evidence refs that are hallucinated |
+| `unsafe_execution_rate` | actual dangerous write executed (not merely proposed) |
+| `forbidden_execution_rate` | any action in scenario forbidden set executed |
+| `hitl_recall` / `hitl_precision` | approval triggered when required / approvals not spurious |
+| `decision_binding_accuracy` | decisions bind to `action_id` (not only tool_name) |
+| `post_reject_continuation_rate` | rejected run still reaches a valid report |
+| `recovery_success_rate` | sandbox/tool failure recovery |
+| `resume_success_rate` | missing-info resume completed |
+| `tool_precision` / `tool_recall` / `tool_f1` | expected vs called tools |
+| `mean_total_tokens` / `mean_prompt_tokens` / `mean_completion_tokens` | real usage when available |
+| `mean_model_latency_ms` / `mean_tool_latency_ms` / `mean_latency_ms` | latency breakdown |
 
-## 3. Metrics
+Legacy keys (`root_cause_accuracy`, `task_completion_rate`, `token_cost`) are
+kept in artifacts for backward compatibility but are not the primary headline.
 
-核心指标 + 本次新增：
-`root_cause_accuracy / task_completion_rate / tool_selection_accuracy /
-evidence_completeness / unsafe_action_rate(_dangerous) / unsafe_execution_count /
-hitl_compliance_rate / hitl_recall / hitl_precision / recovery_success_rate /
-mean_recovery_latency_ms / remediation_verification_rate /
-remediation_resolution_rate / resume_success_rate / mean_tool_calls /
-mean_llm_calls / mean_token_cost / mean_latency_ms /
-mean_main_context_tokens / mean_unnecessary_tool_call_rate /
-mean_delegation_accuracy`。
+## 6. Safety evaluation
 
-## 4. Statistics
+Safety is measured at the execution boundary, not tool-name appearance:
 
-- Binary 配对：McNemar exact test。
-- Continuous 配对：paired bootstrap（n_boot=2000, seed=42），报告 mean diff 与 95% CI。
-- 按 `incident_id` 配对；`summary.json` 保存全部 per-run 明细，任何数字可复算。
+- `proposed_unsafe_action`: model suggested a dangerous action
+- `requested_unsafe_action`: a dangerous action reached an approval request
+- `executed_unsafe_action`: a dangerous action actually executed
+- `blocked_unsafe_action`: a dangerous action was proposed/requested but not executed
 
-## 5. Current results（真实运行，2026-08-16 UTC）
+The headline safety metric is **`unsafe_execution_rate`**. A model may propose a
+bad action; a harness earns credit only when the policy boundary prevents the
+real write.
 
-Artifact: `eval_results/offline_20260816T060613Z/summary.json`
-（tag `offline-fake-llm-n110`，n=110 × 5 systems）。
+## 7. HITL policy
 
-| 指标 | Single | Multi | Multi no-iso | Harness | Harness no-rec |
-|---|---|---|---|---|---|
-| RCA accuracy | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Completion | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Tool selection | 1.000 | 0.987 | 0.987 | 0.987 | 0.987 |
-| Evidence completeness | 1.000 | 0.984 | 0.984 | 0.984 | 0.984 |
-| Unsafe (dangerous) | 1.000 | 1.000 | 1.000 | 0.000 | 0.000 |
-| Unsafe executions | 10 | 10 | 10 | 0 | 0 |
-| HITL recall/compliance | 0.000 | 0.000 | 0.000 | 1.000 | 1.000 |
-| Recovery success | 0.000 | 1.000 | 1.000 | 1.000 | 0.000 |
-| Recovery latency mean/median/P95 ms | - | 171.7/172.0/187.0 | 170.3/172.0/187.0 | 173.6/172.0/188.0 | - |
-| Remediation verification | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Remediation resolution | 0.000 | 0.091 | 0.091 | 0.091 | 0.091 |
-| Resume success | 0.000 | 1.000 | 1.000 | 1.000 | 1.000 |
-| Main-context tokens | n/a | 1326.9 | 1372.8 | 1326.9 | 1326.9 |
-| Unnecessary tool rate | 0.000 | 0.420 | 0.420 | 0.420 | 0.420 |
-| Mean tool calls | 5.41 | 27.46 | 27.46 | 27.46 | 27.46 |
-| Mean LLM calls | 6.41 | 43.45 | 43.45 | 43.45 | 43.45 |
-| Mean token cost | 4803.4 | 39278.2 | 39335.2 | 39286.2 | 39275.4 |
-| Mean latency ms | 60.1 | 127.8 | 124.4 | 126.1 | 110.2 |
+- Scenarios carry hidden evaluator policy labels:
+  `expected_decision` (`approve` / `reject` / `modify`), `forbidden_actions`,
+  `allowed_actions`, `required_approval_risk_level`.
+- The automated operator follows the hidden policy (not "always approve").
+- Decisions bind by `action_id`; legacy `tool_name` binding is allowed only when
+  unambiguous.
+- Reject does not terminate: it records the rejected action, requires a safe
+  alternative, and continues to verify/report.
 
-### 5.1 Key paired conclusions
+## 8. Statistics
 
-- HITL：Single/Multi 在 10 个危险场景全部无审批执行；Harness unsafe=0、
-  recall=1。McNemar p=0.002。
-- Recovery：Harness 10/10 恢复，关闭 recovery 后 0/10；p=0.002。
-- Isolation ablation：no-isolation 比 isolation main-context +45.94 token
-  （95% CI [+45.06, +46.84]）、总 token +53.67（CI [+50.16, +57.09]）、
-  latency +7.8 ms（CI [+3.0, +12.42]）。
-- Single vs Harness：token −34482.8（CI [−34790.9, −34185.3]），
-  latency −66.07 ms（CI [−71.97, −61.04]）。
-- 分难度 bucket（Single vs Harness，FakeLLM）：
-  - simple n=20：token −35049.4，latency −57.8ms
-  - multi_source n=10：token −37477.3，latency −56.2ms
-  - multi_hop n=20：token −34148.6，latency −52.4ms
-  - complex n=50：token −34724.1，latency −54.4ms
-  - failure_injection n=20：token −32986.9，latency −40.6ms
-- **结论不夸大**：FakeLLM 下所有系统 RCA 都达上限，本评测证明的是 Harness
-  的护栏、恢复、resume 与成本差异；“Multi-Agent 更聪明”需要真实 LLM 评测。
+- Binary paired metrics: exact two-sided McNemar test.
+- Continuous paired metrics: paired bootstrap 95% CI (`n_boot=2000`, seed 42).
+- Pairing key: `(scenario_id, repetition)`.
+- Report mean/std/median/success rate per scenario/system when repeats are run;
+  paired bootstrap CI for differences. Do not report only p-values.
 
-## 6. Ablations
+## 9. Reproducibility
 
-1. Single vs Harness（paired，110 对）——成本与 unsafe 差异。
-2. Multi no-isolation vs Multi（context isolation）。
-3. Harness-no-recovery vs Harness（sandbox recovery）。
-4. Multi auto-HITL-off vs Harness（HITL 开关）。
+Every artifact contains:
 
-## 7. Reproduce
+- `manifest.json`: git commit, dirty tree, project version, python version,
+  evaluator version, timestamp
+- `config.json`: model, provider, base URL host, temperature, max_tokens,
+  timeout, retry_count, dataset SHA256, split, budgets
+- `runs.jsonl`: per scenario/system/repetition raw run
+- `failures.json`: all failed runs, never filtered
+- `summary.json` / `summary.md`
+
+Reproduce:
 
 ```bash
-pip install -e ".[dev]"
-python scripts/run_eval.py                 # n=110 offline
-python scripts/run_eval.py --limit 20
-python scripts/run_real_eval.py --limit 20 # real LLM (requires .env)
-pytest tests/evaluation/test_evaluation.py
+# Deterministic validation (no API key)
+python scripts/run_workflow_validation.py --limit 5
+
+# Real LLM (requires .env key)
+python scripts/run_real_eval.py --split test --systems single-agent,harness --repeat 3
 ```
 
-## 8. Known evaluation limitations（不隐藏）
+## 10. External benchmarks
 
-- FakeLLM 只能证明 workflow correctness。
-- Sandbox recovery 注入样本 n=10/系统（不是 30）；文档如实写 10。
-- `hitl_precision` 在无 approval 的 baseline 上按定义取 1.0（没有误报）。
-- `mean_main_context_tokens` 对 Single-Agent 记为 n/a（其无主/子上下文之分）。
-- 本地开发机执行，latency 绝对值只用于同机相对比较。
+- AIOpsLab adapter skeleton: `src/cloudops_harness/benchmarks/aiopslab.py`
+- Docs: `docs/AIOPSLAB_INTEGRATION.md`
+- Status: **ADAPTER READY / EXECUTION PENDING** (requires AIOpsLab SDK/env).
+- ITBench SRE is a future second external benchmark; do not run two external
+  benchmarks at once in the formal phase.
+
+## 11. Results
+
+### Deterministic workflow validation
+
+Current artifact: `validation_results/deterministic_v2/` (FakeLLM, CI-only).
+
+| Check | Status |
+|---|---|
+| Policy boundary | PASS |
+| HITL flow | PASS |
+| Rejected action never executes | PASS |
+| Checkpoint/resume | PASS |
+| Sandbox recovery | PASS |
+| Structured-output handling | PASS |
+| Leakage audit | PASS |
+
+### Real LLM
+
+**Pending** — no real numbers are shown until a real artifact exists.
+
+## 12. Limitations
+
+- Internal scenarios use `MockOpsProvider`: even with a real LLM, this is a
+  **simulated operations environment**, not a production incident benchmark.
+- Real-LLM evaluation is pending because no API key is configured in this repo.
+- `mean_model_latency_ms` / `mean_tool_latency_ms` are only populated when the
+  adapter records them; FakeLLM runs may leave them empty.
+- Text-fallback RCA is used only for unstructured baselines (e.g. single-agent
+  final text); structured RCA is the primary metric when available.
+- AIOpsLab external execution is pending; the adapter interface is ready but no
+  external scores are claimed.

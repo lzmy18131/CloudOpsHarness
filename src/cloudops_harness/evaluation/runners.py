@@ -73,6 +73,8 @@ def _snapshot(runtime: CloudOpsRuntime) -> dict[str, Any]:
         "tool_counts": dict(runtime.registry.global_telemetry),
         "llm_calls": sum(getattr(a, "call_count", 0) for a in adapters),
         "tokens": sum(getattr(a, "usage_total", 0) for a in adapters),
+        "prompt_tokens": sum(getattr(a, "usage_prompt_total", 0) for a in adapters),
+        "completion_tokens": sum(getattr(a, "usage_completion_total", 0) for a in adapters),
     }
 
 
@@ -104,6 +106,7 @@ async def _invoke_until_settled(
             decisions = [
                 {
                     "type": "approve" if approve else "reject",
+                    "action_id": request.get("action_id"),
                     "tool_name": request.get("tool_name"),
                 }
                 for request in pending.get("action_requests", [])
@@ -127,8 +130,14 @@ async def run_one_scenario(
     runtime: CloudOpsRuntime,
     scenario: dict[str, Any],
     system: SystemConfig,
+    *,
+    repetition: int = 0,
 ) -> ScenarioRunResult:
-    """Run one scenario and convert the run into metrics."""
+    """Run one scenario and convert the run into metrics.
+
+    Failures are caught and returned as a FAILED ScenarioRunResult instead of
+    silently crashing the benchmark; every failed run is preserved in artifacts.
+    """
     provider = runtime.base_provider
     provider.deactivate_scenarios()
     provider.activate_scenario(scenario)
@@ -141,33 +150,60 @@ async def run_one_scenario(
         dying.dead = True
         proxy.replace_backend(dying)
 
-    run_id = f"eval-{system.name}-{scenario['incident_id']}"
+    run_id = f"eval-{system.name}-{scenario['incident_id']}-r{repetition}"
     runtime.start_tool_budget(run_id)
     runtime.start_model_budget(run_id)
     before = _snapshot(runtime)
     started = time.monotonic()
-    thread_id = f"eval-{system.name}-{scenario['incident_id']}"
+    thread_id = f"eval-{system.name}-{scenario['incident_id']}-r{repetition}"
     current_user_id.set("eval-user")
     current_thread_id.set(thread_id)
     current_run_id.set(f"run-{uuid.uuid4().hex[:8]}")
-    if system.mode == "single":
-        graph = build_single_agent_graph(
-            runtime.adapter_for(scenario),
-            runtime.registry,
-            approve_writes=True,
-            checkpointer=InMemorySaver(),
+    approve = scenario.get("expected_decision") != "reject"
+    try:
+        if system.mode == "single":
+            graph = build_single_agent_graph(
+                runtime.adapter_for(scenario),
+                runtime.registry,
+                approve_writes=True,
+                checkpointer=InMemorySaver(),
+            )
+            result = await graph.ainvoke(
+                {"messages": [{"role": "user", "content": scenario["user_query"]}]},
+                config={"configurable": {"thread_id": thread_id}},
+            )
+            saw_approval = False
+            saw_missing_info = False
+        else:
+            graph = runtime.build_graph(checkpointer=InMemorySaver())
+            result, saw_approval, saw_missing_info = await _invoke_until_settled(
+                graph, scenario, thread_id, approve=approve
+            )
+    except Exception as exc:  # noqa: BLE001 - benchmark must preserve failures
+        after = _snapshot(runtime)
+        latency_ms = (time.monotonic() - started) * 1000
+        called_tools = sorted(
+            name for name, count in after["tool_counts"].items() if count > before["tool_counts"].get(name, 0)
         )
-        result = await graph.ainvoke(
-            {"messages": [{"role": "user", "content": scenario["user_query"]}]},
-            config={"configurable": {"thread_id": thread_id}},
+        metrics = compute_metrics(
+            scenario,
+            {"status": "failed", "errors": [f"{type(exc).__name__}: {exc}"], "messages": []},
+            system=system.name,
+            saw_approval=False,
+            saw_missing_info=False,
+            tool_calls_delta=sum(after["tool_counts"].values()) - sum(before["tool_counts"].values()),
+            llm_calls_delta=after["llm_calls"] - before["llm_calls"],
+            token_cost_delta=after["tokens"] - before["tokens"],
+            latency_ms=latency_ms,
+            called_tools=called_tools,
+            repetition=repetition,
+            prompt_tokens_delta=after["prompt_tokens"] - before["prompt_tokens"],
+            completion_tokens_delta=after["completion_tokens"] - before["completion_tokens"],
         )
-        saw_approval = False
-        saw_missing_info = False
-    else:
-        graph = runtime.build_graph(checkpointer=InMemorySaver())
-        result, saw_approval, saw_missing_info = await _invoke_until_settled(
-            graph, scenario, thread_id, approve=True
-        )
+        provider.deactivate_scenarios()
+        provider.fault_injection = type(provider.fault_injection)()
+        return metrics
+
     latency_ms = (time.monotonic() - started) * 1000
     after = _snapshot(runtime)
 
@@ -185,6 +221,9 @@ async def run_one_scenario(
         token_cost_delta=after["tokens"] - before["tokens"],
         latency_ms=latency_ms,
         called_tools=called_tools,
+        repetition=repetition,
+        prompt_tokens_delta=after["prompt_tokens"] - before["prompt_tokens"],
+        completion_tokens_delta=after["completion_tokens"] - before["completion_tokens"],
     )
     provider.deactivate_scenarios()
     provider.fault_injection = type(provider.fault_injection)()

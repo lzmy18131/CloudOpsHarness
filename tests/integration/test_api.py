@@ -6,10 +6,10 @@ import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-from tests.integration.test_main_agent import make_scenario
 
 from cloudops_harness.api.app import create_app
 from cloudops_harness.config.settings import Settings
+from tests.integration.test_main_agent import make_scenario
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

@@ -25,3 +25,5 @@ jobs:
         run: ruff format --check src tests scripts
       - name: Tests (no LLM key, deterministic)
         run: pytest -q
+      - name: Deterministic workflow validation smoke (FakeLLM, CI-only)
+        run: python scripts/run_workflow_validation.py --limit 5 --output-dir validation_results/ci_smoke

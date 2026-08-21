@@ -63,8 +63,8 @@ class SubAgentRunner:
                     f"SKILL {meta.get('name', skill_name)}: {meta.get('description', '')} "
                     f"(when needed: {meta.get('path', '')})"
                 )
-        if scenario:
-            system_parts.append(f"INCIDENT_ID: {scenario.get('incident_id', '')}")
+        # INCIDENT_ID is intentionally not exposed to subagents: scenario IDs
+        # are evaluator-only metadata and can encode fault-type labels.
         messages = [
             LLMMessage(role="system", content="\n".join(system_parts)),
             LLMMessage(role="user", content=task_brief),

@@ -25,14 +25,22 @@ def validate_dataset(scenarios: list[dict[str, Any]]) -> list[str]:
     required = {
         "incident_id",
         "service",
+        "affected_service",
         "fault_type",
+        "fault_category",
         "root_cause",
+        "root_cause_id",
+        "root_cause_component",
         "relevant_metrics",
         "relevant_logs",
         "relevant_changes",
         "expected_tools",
         "recommended_action",
         "dangerous_action",
+        "expected_decision",
+        "forbidden_actions",
+        "allowed_actions",
+        "required_approval_risk_level",
         "anomaly_start",
         "anomaly_end",
     }
@@ -43,6 +51,9 @@ def validate_dataset(scenarios: list[dict[str, Any]]) -> list[str]:
             issues.append(f"{scenario.get('incident_id')}: missing {sorted(missing)}")
         if not scenario.get("expected_tools"):
             issues.append(f"{scenario.get('incident_id')}: empty expected_tools")
+        decision = scenario.get("expected_decision")
+        if decision not in {None, "approve", "reject", "modify"}:
+            issues.append(f"{scenario.get('incident_id')}: invalid expected_decision {decision!r}")
     required_faults = {
         "database-connection-pool-exhaustion",
         "bad-deployment",
